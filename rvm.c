@@ -1,7 +1,12 @@
+#include <stdio.h>
+
+
 #include "rvm.h"
 
 //Mappings
-rvm_t rvm_init(const char *directory);
+rvm_t rvm_init(const char *directory) {
+	fopen(directory, "w+");
+}
 
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create);
 
