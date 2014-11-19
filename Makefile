@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -g
 LDFLAGS = 
 LIBS = .
-SRC = rvm_mapping.c rvm_transactions.c rvm_logging.c
+SRC = rvm.c
 OBJ = $(SRC:.c=.o)
 
 OUT = bin/librvm.a
@@ -20,10 +20,10 @@ $(OUT): $(OBJ)
 	ar rcs $(OUT) $(OBJ)
 
 #client :
-	#$(CC) $(CFLAGS) client.c $(OUT) -pthread -o client
+#	$(CC) $(CFLAGS) client.c $(OUT) -pthread -o client
 
 #server :
-	#$(CC) $(CFLAGS) server.c $(OUT) -pthread -o server
+#	$(CC) $(CFLAGS) server.c $(OUT) -pthread -o server
 
 #matrix:
 #	$(CC) $(CFLAGS) src/gt_matrix.c $(OUT) -o bin/matrix
@@ -36,5 +36,5 @@ $(OUT): $(OBJ)
 
 
 clean :
-	@rm *.o bin/*.a client server
+	@rm *.o bin/*.a
 	@echo Cleaned!
