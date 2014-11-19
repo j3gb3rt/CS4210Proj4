@@ -1,11 +1,19 @@
 #include <stdio.h>
-
+#include <errno.h>
+#include <string.h>
 
 #include "rvm.h"
 
+
+
 //Mappings
 rvm_t rvm_init(const char *directory) {
-	fopen(directory, "w+");
+	int error;
+
+	error = mkdir(directory, "w+");
+	if (error) {
+		printf("You derped bro: %s\n", strerror(errno));
+	}
 }
 
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create);
