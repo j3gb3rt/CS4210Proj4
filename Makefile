@@ -10,7 +10,7 @@ OUT = bin/librvm.a
 .PHONY: all
 .DEFAULT: all
 
-all : $(OUT)
+all : $(OUT) client
 
 .c.o: 
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -19,8 +19,8 @@ $(OUT): $(OBJ)
 	@mkdir -p bin
 	ar rcs $(OUT) $(OBJ)
 
-#client :
-#	$(CC) $(CFLAGS) client.c $(OUT) -pthread -o client
+client :
+	$(CC) $(CFLAGS) tests/me_test.c $(OUT) -pthread -o mytest
 
 #server :
 #	$(CC) $(CFLAGS) server.c $(OUT) -pthread -o server
@@ -36,5 +36,5 @@ $(OUT): $(OBJ)
 
 
 clean :
-	@rm *.o bin/*.a
+	@rm *.o bin/*.a mytest
 	@echo Cleaned!

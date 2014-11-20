@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "rvm.h"
 
@@ -10,7 +11,7 @@
 rvm_t rvm_init(const char *directory) {
 	int error;
 
-	error = mkdir(directory, "w+");
+	error = mkdir(directory, S_IRUSR | S_IWUSR);
 	if (error) {
 		printf("You derped bro: %s\n", strerror(errno));
 	}
