@@ -1,7 +1,20 @@
 
 typedef struct rvm {
 	char * backing_file;
+	//do we want one file per segment? it might be easier
 } rvm_t;
+
+typedef struct segment {
+	void *segbase;
+	//possible also segname
+	trans_t transaction;
+	struct segments *next;
+	//maybe pointer to list of regions
+} segment_t;
+
+typedef struct seg_list {
+	segment_t *head;
+} seg_list_t;
 
 typedef unsigned int trans_t;
 
