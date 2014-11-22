@@ -122,6 +122,17 @@ void rvm_destroy(rvm_t rvm, const char *segname){
 //Transactions
 trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 //check through segment/trans mappings then write to them
+	segment_t segments[numsegs];
+	int i;
+	for(i = 0; i <numsegs; i++){
+		segments[i] = find_segment(*(segbase + i));
+		if(segments[i]->transaction != -1){
+			return (trans_t) -1;
+		}
+	}
+	for(i = 0; i <numsegs; i++){
+		segments[i]->trans = 1; //generate a trans number
+	}
 }
 
 void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
