@@ -106,7 +106,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		segment->size = size_to_create;
 		segment->segname = segname;
 	}
-
+	return segment->segbase;
 }
 
 void rvm_unmap(rvm_t rvm, void *segbase){
@@ -158,8 +158,22 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 }
 
 void rvm_commit_trans(trans_t tid){
-//write committed new values to log
+//iterate through segments, write to log and end transaction on appropriate segments
 //erase saved old-values from memory
+	segment_t *curr = seg_list->head;
+	if(curr != NULL){
+		if(curr->transation == tid){
+			write_to_log(curr);
+			end_transaction(curr);
+		}
+		while(curr->next != NULL){
+			curr = curr->next;
+			if(curr->transaction == tid){
+				write_to_log(curr);
+				end_transaction(curr);
+			}	
+		}	
+	}
 }
 
 void rvm_abort_trans(trans_t tid){
