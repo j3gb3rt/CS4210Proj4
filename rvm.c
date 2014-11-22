@@ -14,7 +14,7 @@ seg_list_t *create_seg_list(){
 }
 //adds segment to list
 segment_t *add_segment(seg_list_t *list,void *segbase){
-	segment_t *node = malloc(sizeof(segments_t));
+	segment_t *node = malloc(sizeof(segment_t));
 	node->segbase = segbase;
 	node->trans_t = -1;
 	
@@ -95,7 +95,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	segment = find_segment(seg_list, segname);
 	if(segment != NULL){
 		if(segment->size < size_to_create){
-			segment->segbase = realloc(segbase, size_to_create);
+			segment->segbase = realloc(segment->segbase, size_to_create);
 			segment->size = size_to_create;
 		}else{
 			//return error?
@@ -125,19 +125,36 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 	segment_t segments[numsegs];
 	int i;
 	for(i = 0; i <numsegs; i++){
-		segments[i] = find_segment(*(segbase + i));
+		segments[i] = find_segment(seg_list, *(segbase + i));
 		if(segments[i]->transaction != -1){
 			return (trans_t) -1;
 		}
 	}
+	trans_t transaction= 1;		//generate a trans number
 	for(i = 0; i <numsegs; i++){
-		segments[i]->trans = 1; //generate a trans number
+		segments[i]->trans = transaction; 
 	}
+	return transaction;	
 }
 
 void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 //make sure segment is mapped to transaction
 //save existing segment values in memory in case of abort
+//kept it simple for now, can check for redundancy to make more efficient
+//pushes new region onto stack
+	segment_t *segment = find_segment(seg_list, segbase);
+	if(segment->transaction == tid){
+		region_t *region = malloc(sizeof(region_t));
+		region->regbase = malloc(size);
+		region->next = segment->regions;
+		segment->regions = region;
+		//check to make sure region is in segment
+		if(segment->size >= offset + size){
+			region->regbase = memcpy(region->regbase, segbase + offset, size);
+		}else{
+			printf("error, tried to save region not in segment\n");
+		}
+	}
 }
 
 void rvm_commit_trans(trans_t tid){

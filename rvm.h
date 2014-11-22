@@ -4,18 +4,27 @@ typedef struct rvm {
 	//do we want one file per segment? it might be easier
 } rvm_t;
 
+typedef struct region {
+	void *regbase;
+//	size_t size;		will need if we optimize regions
+	struct region *next;
+} region_t;
+
 typedef struct segment {
 	void *segbase;
 	char *segname;
 	trans_t transaction;
 	size_t size;
-	struct segments *next;
-	//maybe pointer to list of regions
+	struct segment *next;
+	region_t *regions;
 } segment_t;
 
 typedef struct seg_list {
 	segment_t *head;
 } seg_list_t;
+
+
+	
 
 typedef unsigned int trans_t;
 
