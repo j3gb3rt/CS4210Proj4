@@ -6,8 +6,9 @@ typedef struct rvm {
 
 typedef struct segment {
 	void *segbase;
-	//possible also segname
+	char *segname;
 	trans_t transaction;
+	size_t size;
 	struct segments *next;
 	//maybe pointer to list of regions
 } segment_t;

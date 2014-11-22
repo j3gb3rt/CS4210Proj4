@@ -14,10 +14,12 @@ seg_list_t *create_seg_list(){
 }
 //adds segment to list
 segment_t *add_segment(seg_list_t *list,void *segbase){
-	segment_t node = malloc(sizeof(segments_t));
+	segment_t *node = malloc(sizeof(segments_t));
 	node->segbase = segbase;
 	node->trans_t = -1;
 	
+
+	//maybe redo to just push on top for efficiency
 	if(list->head == NULL){
 		list->head = node;
 	}else{
@@ -27,6 +29,51 @@ segment_t *add_segment(seg_list_t *list,void *segbase){
 		}
 		curr->next = node;
 	}
+	return node;
+}
+
+void remove_segment(seg_list *list, void *segbase){
+	segment_t *curr = list->head;
+	if(curr == NULL){
+		return;
+	}else{
+		if(curr->segbase == segbase){
+			list->head = curr->next;
+			free(curr);
+		}else{
+			segment_t *prev = curr;
+			curr = curr->next;
+			while(prev->next != NULL){
+				if(curr->segbase == segbase){
+					prev->next = curr->next;
+					free(curr);
+					curr = prev->next;
+					return;
+				}else{	
+					prev = curr;
+					curr = curr->next;
+				}
+			}
+		}
+	}
+}
+
+segment_t *find_segment(seg_list_t *list, char *segname){
+	segment_t *curr = list->head;
+	if(curr == NULL)
+		return NULL;
+	}else{
+		if(curr->segname == segname){
+			return curr;
+		}
+	}
+	while(curr->next != NULL){
+		curr = curr->next;
+		if(curr->segname == segname){
+			return curr;
+		}
+	}
+	return NULL;
 }
 
 //Mappings
@@ -40,10 +87,26 @@ rvm_t rvm_init(const char *directory) {
 	}
 }
 
+//check through seg_list. if exists with same size error
+//else extend memory of segment.
+//should memory be blank, or copied from some file?
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
-	//check through seg_list. if exists with same size error
-	//else extend memory of segment.
-	//make empty file here of same size here?
+	segment_t *segment;
+	segment = find_segment(seg_list, segname);
+	if(segment != NULL){
+		if(segment->size < size_to_create){
+			segment->segbase = realloc(segbase, size_to_create);
+			segment->size = size_to_create;
+		}else{
+			//return error?
+		}
+	}else{
+		void *seg_base = malloc(size_to_create);
+		segment = add_segment(seg_list,seg_base);
+		segment->size = size_to_create;
+		segment->segname = segname;
+	}
+
 }
 
 void rvm_unmap(rvm_t rvm, void *segbase){
