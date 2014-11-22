@@ -76,6 +76,19 @@ segment_t *find_segment(seg_list_t *list, char *segname){
 	return NULL;
 }
 
+void end_transaction(segment_t *segment){
+
+}
+
+void write_to_log(segment_t *segment){
+
+}
+
+void undo_changes(segment_t *segment){
+	region_t region = segment->regions;
+}
+
+
 //Mappings
 rvm_t rvm_init(const char *directory) {
 	int error;
@@ -162,8 +175,8 @@ void rvm_commit_trans(trans_t tid){
 //erase saved old-values from memory
 	segment_t *curr = seg_list->head;
 	if(curr != NULL){
-		if(curr->transation == tid){
-			write_to_log(curr);
+		if(curr->transaction == tid){
+			write_to_log(curr);//put end transaction in write_to_log
 			end_transaction(curr);
 		}
 		while(curr->next != NULL){
@@ -179,6 +192,18 @@ void rvm_commit_trans(trans_t tid){
 void rvm_abort_trans(trans_t tid){
 //return segment values to the old-values saved in memory
 //erase saved old-values from memory
+	segment_t *curr = seg_list->head;
+	if(curr != NULL){
+		if(curr->transaction == tid){
+			undo_changes(curr);
+		}
+		while(curr->next != NULL){
+			curr = curr->next;
+			if(curr->transaction == tid){
+				undo_changes(curr);
+			}
+		}
+	}
 }
 
 
