@@ -6,6 +6,7 @@
 #include "rvm.h"
 
 seg_list_t *seg_list;
+char **rvm_list;
 
 //initializes seg_list
 seg_list_t *create_seg_list(){

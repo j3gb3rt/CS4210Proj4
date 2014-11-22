@@ -1,9 +1,3 @@
-
-typedef struct rvm {
-	char * backing_file;
-	//do we want one file per segment? it might be easier
-} rvm_t;
-
 typedef struct region {
 	void *regbase;
 //	size_t size;		will need if we optimize regions
@@ -24,8 +18,7 @@ typedef struct seg_list {
 } seg_list_t;
 
 
-	
-
+typedef unsigned int rvm_t;
 typedef unsigned int trans_t;
 
 //Mappings
