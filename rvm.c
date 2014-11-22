@@ -10,7 +10,8 @@
 
 seg_list_t *seg_list;
 int *transactions;
-char **rvm_list;
+//char **rvm_list;
+rvm_list_t *rvm_list;
 
 //initializes seg_list
 seg_list_t *create_seg_list(){
@@ -143,8 +144,24 @@ rvm_t rvm_init(const char *directory) {
 
 	//TODO transactions and segment lists can't be global values as they are now
 	//they should values of a rvm key
-	seg_list = create_seg_list();
-	transactions = calloc(MAX_TRANSACTIONS * sizeof(int));
+	rvm_list_t *rvm_node;
+	rvm_list_t *curr;
+	if(rvm_list == NULL){
+		rvm_node = malloc(sizeof(rvm_list_t));
+		rvm_list = rvm_node;
+	}else{
+		curr = rvm_list;
+		while(curr->next != NULL){
+			curr = curr->next;
+		}
+		rvm_node = malloc(sizeof(rvm_list_t));
+		curr->next = rvm_node;
+	}
+
+	//TODO assign rvm id
+	rvm_node->seg_list = create_seg_list();
+	rvm_node->transactions = calloc(MAX_TRANSACTION * sizeof(int));
+		
 
 	error = mkdir(directory, S_IRUSR | S_IWUSR);
 	if (error) {

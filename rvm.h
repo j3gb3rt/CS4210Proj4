@@ -17,6 +17,12 @@ typedef struct seg_list {
 	segment_t *head;
 } seg_list_t;
 
+typedef struct rvm_list {
+	rvm_t rvm_id;
+	seg_list_t *seg_list;
+	int *transaction;
+	struct rvm_list *next;
+} rvm_list_t;
 
 typedef unsigned int rvm_t;
 typedef unsigned int trans_t;
