@@ -1,6 +1,6 @@
 typedef struct region {
 	void *regbase;
-//	size_t size;		will need if we optimize regions
+	size_t size;		
 	struct region *next;
 } region_t;
 
