@@ -8,7 +8,7 @@
 #define MAX_TRANSACTIONS 1000
 
 
-int *transactions;
+rvm_t *transactions;
 rvm_list_t *rvm_list;
 rvm_t rvm_id = 0;
 
@@ -111,11 +111,11 @@ rvm_list *find_rvm(rvm_t rvm_id){
 }
 
 //slow, can improve if theres time
-trans_t start_transaction(){
+trans_t start_transaction(rvm_t rvm){
 	int i;
 	for(i = 0; i < MAX_TRANSACTIONS; i++){
 		if(transactions[i] == 0){
-			transactions[i] = 1;
+			transactions[i] = rvm;
 			return (trans_t) i;
 		}
 	}
@@ -162,12 +162,14 @@ void undo_changes(segment_t *segment){
 rvm_t rvm_init(const char *directory) {
 	int error;
 
+	//if transactions hasn't been allocated, do it
 	if(transactions == NULL){
 		transactions = calloc(MAX_TRANSACTION * sizeof(int));
 	}
 
 	rvm_list_t *rvm_node;
 	rvm_list_t *curr;
+	//add new rvm_node
 	if(rvm_list == NULL){
 		rvm_node = malloc(sizeof(rvm_list_t));
 		rvm_list = rvm_node;
@@ -251,7 +253,7 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 			return (trans_t) -1;
 		}
 	}
-	trans_t transaction= start_transaction(transactions);	//generate a trans number
+	trans_t transaction= start_transaction(rvm);	//generate a trans number
 	for(i = 0; i <numsegs; i++){
 		segments[i]->trans = transaction; 
 	}
@@ -263,6 +265,7 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 //save existing segment values in memory in case of abort
 //kept it simple for now, can check for redundancy to make more efficient
 //pushes new region onto stack
+	rvm_t rvm = transactions[tid];
 	rvm_list_t *rvm_node = find_rvm(rvm);
 	segment_t *segment = find_segment(rvm_node->seg_list, segbase);
 	if(segment->transaction == tid){
@@ -283,8 +286,9 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 void rvm_commit_trans(trans_t tid){
 //iterate through segments, write to log and end transaction on appropriate segments
 //erase saved old-values from memory
-	//TODO find a way to get right seg_list, maybe have rvm_id as transaction value
-	segment_t *curr = seg_list->head;
+	rvm_t rvm = transactions[tid];
+	rvm_list_t *rvm_node = find_rvm(rvm);
+	segment_t *curr = rvm_node->seg_list->head;
 	if(curr != NULL){
 		if(curr->transaction == tid){
 			write_to_log(curr);// end transaction in write_to_log
@@ -301,7 +305,9 @@ void rvm_commit_trans(trans_t tid){
 void rvm_abort_trans(trans_t tid){
 //return segment values to the old-values saved in memory
 //erase saved old-values from memory
-	segment_t *curr = seg_list->head;
+	rvm_t rvm = transactions[tid];
+	rvm_list_t *rvm_node = find_rvm(rvm);
+	segment_t *curr = rvm_node->seg_list->head;
 	if(curr != NULL){
 		if(curr->transaction == tid){
 			undo_changes(curr);
