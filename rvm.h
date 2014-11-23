@@ -20,7 +20,6 @@ typedef struct seg_list {
 typedef struct rvm_list {
 	rvm_t rvm_id;
 	seg_list_t *seg_list;
-	int *transaction;
 	struct rvm_list *next;
 } rvm_list_t;
 

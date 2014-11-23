@@ -8,10 +8,9 @@
 #define MAX_TRANSACTIONS 1000
 
 
-seg_list_t *seg_list;
 int *transactions;
-//char **rvm_list;
 rvm_list_t *rvm_list;
+rvm_t rvm_id = 0;
 
 //initializes seg_list
 seg_list_t *create_seg_list(){
@@ -76,7 +75,7 @@ segment_t *find_segment(seg_list_t *list, void *segbase){
 
 segment_t *find_segment(seg_list_t *list, char *segname){
 	segment_t *curr = list->head;
-	if(curr == NULL)
+	if(curr == NULL){
 		return NULL;
 	}else{
 		if(curr->segname == segname){
@@ -92,19 +91,38 @@ segment_t *find_segment(seg_list_t *list, char *segname){
 	return NULL;
 }
 
+rvm_list *find_rvm(rvm_t rvm_id){	
+	rvm_list_t *curr = rvm_list;
+	if(curr == NULL){
+		//this should never happen if they've called the init function
+		return NULL;
+	}else{
+		if(curr->rvm_id == rvm_id){
+			return curr;
+		}
+	}
+	while(curr->next != NULL){
+		curr = curr->next;
+		if(curr->rvm_id == rvm_id){
+			return curr;
+		}
+	}
+	return NULL;
+}
+
 //slow, can improve if theres time
-trans_t start_transaction(int *trans){
+trans_t start_transaction(){
 	int i;
 	for(i = 0; i < MAX_TRANSACTIONS; i++){
-		if(trans[i] == 0){
-			trans[i] = 1;
+		if(transactions[i] == 0){
+			transactions[i] = 1;
 			return (trans_t) i;
 		}
 	}
 }
 
-void end_transaction(int *trans, segment_t *segment){
-	trans[segment->transaction] = 0;
+void end_transaction(segment_t *segment){
+	transactions[segment->transaction] = 0;
 	segment->transaction = -1;
 }
 
@@ -120,7 +138,7 @@ void write_to_log(segment_t *segment){
 		region = segment->regions;
 	}
 	
-	end_transaction(transactions, segment);
+	end_transaction(segment);
 }
 
 void undo_changes(segment_t *segment){
@@ -134,16 +152,20 @@ void undo_changes(segment_t *segment){
 		region = segment->regions;
 	}
 
-	end_transaction(transactions, segment);
+	end_transaction(segment);
 }
 
 
 //Mappings
+
+//must do init function before starting a transaction
 rvm_t rvm_init(const char *directory) {
 	int error;
 
-	//TODO transactions and segment lists can't be global values as they are now
-	//they should values of a rvm key
+	if(transactions == NULL){
+		transactions = calloc(MAX_TRANSACTION * sizeof(int));
+	}
+
 	rvm_list_t *rvm_node;
 	rvm_list_t *curr;
 	if(rvm_list == NULL){
@@ -158,15 +180,15 @@ rvm_t rvm_init(const char *directory) {
 		curr->next = rvm_node;
 	}
 
-	//TODO assign rvm id
 	rvm_node->seg_list = create_seg_list();
-	rvm_node->transactions = calloc(MAX_TRANSACTION * sizeof(int));
+	rvm_node->rvm_id = (rvm_t) rvm_id++;
 		
-
 	error = mkdir(directory, S_IRUSR | S_IWUSR);
 	if (error) {
 		printf("You derped bro: %s\n", strerror(errno));
 	}
+	
+	return rvm_node->rvm_id;
 }
 
 //check through seg_list. if exists with same size error
@@ -174,7 +196,8 @@ rvm_t rvm_init(const char *directory) {
 //should memory be blank, or copied from some file?
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	segment_t *segment;
-	segment = find_segment(seg_list, segname);
+	rvm_list_t *rvm_node = find_rvm(rvm);
+	segment = find_segment(rvm_node->seg_list, segname);
 	if(segment != NULL){
 		//segment exists but has been unmapped
 		if(segment->segbase == NULL){
@@ -192,7 +215,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	//segment does not exist
 	}else{
 		void *seg_base = malloc(size_to_create);
-		segment = add_segment(seg_list,seg_base);
+		segment = add_segment(rvm_node->seg_list,seg_base);
 		segment->size = size_to_create;
 		segment->segname = segname;
 	}
@@ -202,24 +225,27 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 void rvm_unmap(rvm_t rvm, void *segbase){
 	//unmalloc segbase
 	//if they can unmap during a transaction, this needs more work
-	segment_t segment = find_segment(seg_list, segbase);
+	rvm_list_t *rvm_node = find_rvm(rvm);
+	segment_t segment = find_segment(rvm_node->seg_list, segbase);
 	free(segbase);
 	segbase = NULL;
 }
 
 void rvm_destroy(rvm_t rvm, const char *segname){
 	//TODO delete file
-	remove_node(seg_list, segnmae);
+	rvm_list_t *rvm_node = find_rvm(rvm);
+	remove_node(rvm_node->seg_list, segnmae);
 }
 
 	
 //Transactions
 trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 //check through segment/trans mappings then write to them
+	rvm_list_t *rvm_node = find_rvm(rvm);
 	segment_t segments[numsegs];
 	int i;
 	for(i = 0; i <numsegs; i++){
-		segments[i] = find_segment(seg_list, *(segbase + i));
+		segments[i] = find_segment(rvm_node->seg_list, *(segbase + i));
 		if(segments[i]->transaction != -1){
 			//if segments are already being modified, return error
 			return (trans_t) -1;
@@ -237,7 +263,8 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 //save existing segment values in memory in case of abort
 //kept it simple for now, can check for redundancy to make more efficient
 //pushes new region onto stack
-	segment_t *segment = find_segment(seg_list, segbase);
+	rvm_list_t *rvm_node = find_rvm(rvm);
+	segment_t *segment = find_segment(rvm_node->seg_list, segbase);
 	if(segment->transaction == tid){
 		region_t *region = malloc(sizeof(region_t));
 		region->regbase = malloc(size);
@@ -256,6 +283,7 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 void rvm_commit_trans(trans_t tid){
 //iterate through segments, write to log and end transaction on appropriate segments
 //erase saved old-values from memory
+	//TODO find a way to get right seg_list, maybe have rvm_id as transaction value
 	segment_t *curr = seg_list->head;
 	if(curr != NULL){
 		if(curr->transaction == tid){
