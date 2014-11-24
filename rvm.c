@@ -128,7 +128,7 @@ void end_transaction(segment_t *segment){
 
 void write_to_log(segment_t *segment){
 	//TODO write to log	
-
+	
 	//free regions
 	region_t region = segment->regions;
 	while(region != NULL){
@@ -139,6 +139,30 @@ void write_to_log(segment_t *segment){
 	}
 	
 	end_transaction(segment);
+}
+
+void load_and_update(segment *segment) {
+	FILE *segment_backer;
+	FILE *segment_log;
+	fpos_t log_head;
+	size_t old_size;
+	void *segment_change;
+		
+	segment->segbase = malloc(segment->size);
+	segment_backer = fopen(segment->segname, "r+");
+	fread(&old_size, sizeof(int), 1, segment_backer);
+	fread(segment->segbase, old_size, 1, segment_backer);
+	segment_log = fopen(segment->segname + ".log", "r");
+	fread(&log_head, sizeof(fpos_t), 1, segment_log);
+	fsetpos(segment_log, &log_head);
+	while (fread(segment->segbase, old_size, 1, segment_log) == old_size) {
+		//If we move to region changes, things will actually happen here
+	};
+	
+	rewind(segment_backer);
+	fwrite(segment->size, sizeof(int), 1, segment_backer);
+	fclose(segment_backer);
+	fclose(segment_log);
 }
 
 void undo_changes(segment_t *segment){
@@ -164,7 +188,7 @@ rvm_t rvm_init(const char *directory) {
 
 	//if transactions hasn't been allocated, do it
 	if(transactions == NULL){
-		transactions = calloc(MAX_TRANSACTION * sizeof(int));
+		transactions = calloc(MAX_TRANSACTION, sizeof(int));
 	}
 
 	rvm_list_t *rvm_node;
@@ -201,25 +225,50 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	rvm_list_t *rvm_node = find_rvm(rvm);
 	segment = find_segment(rvm_node->seg_list, segname);
 	if(segment != NULL){
-		//segment exists but has been unmapped
-		if(segment->segbase == NULL){
-			//TODO apply log
-			segment->segbase = malloc(size_to_create);
+		//segment exists but has been unmapped &
+		//size_to_create is larger or eqaul to current size
+		if(segment->segbase == NULL && segment->size <= size_to_create){		
 			segment->size = size_to_create;
+			load_and_update(segment);
+
 		//segment needs to be elongated
 		}else if(segment->size < size_to_create){
 			segment->segbase = realloc(segment->segbase, size_to_create);
 			segment->size = size_to_create;
+		
 		//tried to map existing or smaller segment
 		}else{
-			//TODO return error?
-		}
+			return (void *) -1;
+		}fpos_t log_head;
 	//segment does not exist
 	}else{
-		void *seg_base = malloc(size_to_create);
-		segment = add_segment(rvm_node->seg_list,seg_base);
-		segment->size = size_to_create;
-		segment->segname = segname;
+		//check exist
+		FILE *new_segment_backer;
+		if (new_segment_backer = fopen(segname, "r"){
+			fread(&segment->size, sizeof(int), 1, new_segment_backer);
+			fclose(new_segment_backer);
+			load_and_update(segment);
+		}else{
+			//THIS SHOULD CORRECTLY INITIALIZE BACKING STORE AND LOG
+			FILE *new_segment_log;
+			fpos_t log_head;
+
+			new_segment_backer = fopen(segname, "w+");
+			fwrite(&size_to_create, sizeof(int), 1, new_segment_backer);
+			fclose(new_segment_backer);
+		
+			new_segment_log = fopen(segname + ".log", "w+");
+			fseek(new_segment_log, sizeof(fpos_t), SEEK_SET);
+			fgetpos(new_segment_log, &log_head);
+			rewind(new_segment_log);
+			fwrite(&log_head, sizeof(fpos_t), 1, new_segment_log); 
+			fclose(new_segment_log);
+
+			void *seg_base = malloc(size_to_create);
+			segment = add_segment(rvm_node->seg_list,seg_base);
+			segment->size = size_to_create;
+			segment->segname = segname;
+		}
 	}
 	return segment->segbase;
 }
@@ -234,9 +283,9 @@ void rvm_unmap(rvm_t rvm, void *segbase){
 }
 
 void rvm_destroy(rvm_t rvm, const char *segname){
-	//TODO delete file
+	remove(segname);
 	rvm_list_t *rvm_node = find_rvm(rvm);
-	remove_node(rvm_node->seg_list, segnmae);
+	remove_segment(rvm_node->seg_list, segname);
 }
 
 	
