@@ -1,3 +1,8 @@
+#define MAX_TRANSACTION 10000
+
+typedef unsigned int rvm_t;
+typedef unsigned int trans_t;
+
 typedef struct region {
 	void *regbase;
 	size_t size;		
@@ -6,7 +11,7 @@ typedef struct region {
 
 typedef struct segment {
 	void *segbase;
-	char *segname;
+	const char *segname;
 	trans_t transaction;
 	size_t size;
 	struct segment *next;
@@ -22,9 +27,6 @@ typedef struct rvm_list {
 	seg_list_t *seg_list;
 	struct rvm_list *next;
 } rvm_list_t;
-
-typedef unsigned int rvm_t;
-typedef unsigned int trans_t;
 
 //Mappings
 rvm_t rvm_init(const char *directory);

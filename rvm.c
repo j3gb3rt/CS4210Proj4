@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -14,14 +15,16 @@ rvm_t rvm_id = 0;
 
 //initializes seg_list
 seg_list_t *create_seg_list(){
-	seg_list_t *list = malloc(sizeof(seg_list_t));
+	seg_list_t *list;
+	list = (seg_list_t *) malloc(sizeof(seg_list_t));
 	return list;
 }
 //adds segment to list
 segment_t *add_segment(seg_list_t *list,void *segbase){
-	segment_t *node = malloc(sizeof(segment_t));
+	segment_t *node;
+	node = (segment_t *) malloc(sizeof(segment_t));
 	node->segbase = segbase;
-	node->trans_t = -1;
+	node->transaction = -1;
 	
 	node->next = list->head;
 	list->head = node;
@@ -29,7 +32,7 @@ segment_t *add_segment(seg_list_t *list,void *segbase){
 	return node;
 }
 
-void remove_segment(seg_list *list, char *segname){
+void remove_segment(seg_list_t *list, const char *segname){
 	segment_t *curr = list->head;
 	if(curr == NULL){
 		return;
@@ -55,9 +58,9 @@ void remove_segment(seg_list *list, char *segname){
 	}
 }
 
-segment_t *find_segment(seg_list_t *list, void *segbase){
+segment_t *find_segment_by_ptr(seg_list_t *list, void *segbase){
 	segment_t *curr = list->head;
-	if(curr == NULL)
+	if(curr == NULL) {
 		return NULL;
 	}else{
 		if(curr->segbase == segbase){
@@ -73,7 +76,7 @@ segment_t *find_segment(seg_list_t *list, void *segbase){
 	return NULL;
 }
 
-segment_t *find_segment(seg_list_t *list, char *segname){
+segment_t *find_segment_by_name(seg_list_t *list, const char *segname){
 	segment_t *curr = list->head;
 	if(curr == NULL){
 		return NULL;
@@ -91,7 +94,7 @@ segment_t *find_segment(seg_list_t *list, char *segname){
 	return NULL;
 }
 
-rvm_list *find_rvm(rvm_t rvm_id){	
+rvm_list_t *find_rvm(rvm_t rvm_id){	
 	rvm_list_t *curr = rvm_list;
 	if(curr == NULL){
 		//this should never happen if they've called the init function
@@ -130,8 +133,8 @@ void write_to_log(segment_t *segment){
 	//TODO write to log	
 	
 	//free regions
-	region_t region = segment->regions;
-	while(region != NULL){
+	region_t *region = segment->regions;
+	while(region != (region_t *) NULL){
 		segment->regions = region->next;
 		free(region->regbase);
 		free(region);
@@ -141,18 +144,21 @@ void write_to_log(segment_t *segment){
 	end_transaction(segment);
 }
 
-void load_and_update(segment *segment) {
+void load_and_update(segment_t *segment) {
 	FILE *segment_backer;
 	FILE *segment_log;
 	fpos_t log_head;
 	size_t old_size;
+	char * seglogname;
 	void *segment_change;
 		
 	segment->segbase = malloc(segment->size);
 	segment_backer = fopen(segment->segname, "r+");
 	fread(&old_size, sizeof(int), 1, segment_backer);
 	fread(segment->segbase, old_size, 1, segment_backer);
-	segment_log = fopen(segment->segname + ".log", "r");
+	strcpy(seglogname, segment->segname);
+	strcat(seglogname, ".log");
+	segment_log = fopen(seglogname, "r");
 	fread(&log_head, sizeof(fpos_t), 1, segment_log);
 	fsetpos(segment_log, &log_head);
 	while (fread(segment->segbase, old_size, 1, segment_log) == old_size) {
@@ -160,13 +166,13 @@ void load_and_update(segment *segment) {
 	};
 	
 	rewind(segment_backer);
-	fwrite(segment->size, sizeof(int), 1, segment_backer);
+	fwrite(&segment->size, sizeof(int), 1, segment_backer);
 	fclose(segment_backer);
 	fclose(segment_log);
 }
 
 void undo_changes(segment_t *segment){
-	region_t region = segment->regions;
+	region_t *region = segment->regions;
 	while(region != NULL){
 		//apply saved old-values to segment in a FILO order
 		segment->segbase = memcpy(segment->segbase, region->regbase, region->size);
@@ -223,7 +229,7 @@ rvm_t rvm_init(const char *directory) {
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	segment_t *segment;
 	rvm_list_t *rvm_node = find_rvm(rvm);
-	segment = find_segment(rvm_node->seg_list, segname);
+	segment = find_segment_by_name(rvm_node->seg_list, segname);
 	if(segment != NULL){
 		//segment exists but has been unmapped &
 		//size_to_create is larger or eqaul to current size
@@ -244,20 +250,23 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	}else{
 		//check exist
 		FILE *new_segment_backer;
-		if (new_segment_backer = fopen(segname, "r"){
+		if (new_segment_backer = fopen(segname, "r")){
 			fread(&segment->size, sizeof(int), 1, new_segment_backer);
 			fclose(new_segment_backer);
 			load_and_update(segment);
 		}else{
 			//THIS SHOULD CORRECTLY INITIALIZE BACKING STORE AND LOG
 			FILE *new_segment_log;
+			char *seglogname;
 			fpos_t log_head;
 
 			new_segment_backer = fopen(segname, "w+");
 			fwrite(&size_to_create, sizeof(int), 1, new_segment_backer);
 			fclose(new_segment_backer);
-		
-			new_segment_log = fopen(segname + ".log", "w+");
+			
+			strcpy(seglogname, segment->segname);
+			strcat(seglogname, ".log");
+			new_segment_log = fopen(seglogname, "w+");
 			fseek(new_segment_log, sizeof(fpos_t), SEEK_SET);
 			fgetpos(new_segment_log, &log_head);
 			rewind(new_segment_log);
@@ -277,7 +286,7 @@ void rvm_unmap(rvm_t rvm, void *segbase){
 	//unmalloc segbase
 	//if they can unmap during a transaction, this needs more work
 	rvm_list_t *rvm_node = find_rvm(rvm);
-	segment_t segment = find_segment(rvm_node->seg_list, segbase);
+	segment_t *segment = find_segment_by_ptr(rvm_node->seg_list, segbase);
 	free(segbase);
 	segbase = NULL;
 }
@@ -293,10 +302,10 @@ void rvm_destroy(rvm_t rvm, const char *segname){
 trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 //check through segment/trans mappings then write to them
 	rvm_list_t *rvm_node = find_rvm(rvm);
-	segment_t segments[numsegs];
+	segment_t *segments[numsegs];
 	int i;
 	for(i = 0; i <numsegs; i++){
-		segments[i] = find_segment(rvm_node->seg_list, *(segbase + i));
+		segments[i] = find_segment_by_ptr(rvm_node->seg_list, *(segbases + i));
 		if(segments[i]->transaction != -1){
 			//if segments are already being modified, return error
 			return (trans_t) -1;
@@ -304,7 +313,7 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 	}
 	trans_t transaction= start_transaction(rvm);	//generate a trans number
 	for(i = 0; i <numsegs; i++){
-		segments[i]->trans = transaction; 
+		segments[i]->transaction = transaction; 
 	}
 	return transaction;	
 }
@@ -316,7 +325,7 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 //pushes new region onto stack
 	rvm_t rvm = transactions[tid];
 	rvm_list_t *rvm_node = find_rvm(rvm);
-	segment_t *segment = find_segment(rvm_node->seg_list, segbase);
+	segment_t *segment = find_segment_by_ptr(rvm_node->seg_list, segbase);
 	if(segment->transaction == tid){
 		region_t *region = malloc(sizeof(region_t));
 		region->regbase = malloc(size);

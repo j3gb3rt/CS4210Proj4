@@ -10,7 +10,7 @@ OUT = bin/librvm.a
 .PHONY: all
 .DEFAULT: all
 
-all : $(OUT) client
+all : $(OUT) tests
 
 .c.o: 
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -19,8 +19,13 @@ $(OUT): $(OBJ)
 	@mkdir -p bin
 	ar rcs $(OUT) $(OBJ)
 
-client :
+tests :
 	$(CC) $(CFLAGS) tests/me_test.c $(OUT) -pthread -o mytest
+	$(CC) $(CFLAGS) tests/abort.c $(OUT) -pthread -o abort
+	$(CC) $(CFLAGS) tests/basic.c $(OUT) -pthread -o basic
+	$(CC) $(CFLAGS) tests/multi.c $(OUT) -pthread -o multi
+	$(CC) $(CFLAGS) tests/multi-abort.c $(OUT) -pthread -o multiabort
+	$(CC) $(CFLAGS) tests/truncate.c $(OUT) -pthread -o truncate
 
 #server :
 #	$(CC) $(CFLAGS) server.c $(OUT) -pthread -o server
