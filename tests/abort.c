@@ -1,7 +1,7 @@
 /* abort.c - test that aborting a modification returns the segment to
  * its initial state */
 
-#include "rvm.h"
+#include "../rvm.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +23,8 @@ int main(int argc, char **argv)
      
      rvm_destroy(rvm, "testseg");
      
-     seg = (char *) segs[0] = (char *) rvm_map(rvm, "testseg", 10000);
+     seg = (char *) rvm_map(rvm, "testseg", 10000);
+	 segs[0] = seg;
 
      /* write some data and commit it */
      trans = rvm_begin_trans(rvm, 1, segs);

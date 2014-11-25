@@ -19,7 +19,7 @@ $(OUT): $(OBJ)
 	@mkdir -p bin
 	ar rcs $(OUT) $(OBJ)
 
-tests :
+tests: $(OUT)
 	$(CC) $(CFLAGS) tests/me_test.c $(OUT) -pthread -o mytest
 	$(CC) $(CFLAGS) tests/abort.c $(OUT) -pthread -o abort
 	$(CC) $(CFLAGS) tests/basic.c $(OUT) -pthread -o basic

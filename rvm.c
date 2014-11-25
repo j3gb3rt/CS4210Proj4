@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include "rvm.h"
 
@@ -130,7 +131,15 @@ void end_transaction(segment_t *segment){
 }
 
 void write_to_log(segment_t *segment){
-	//TODO write to log	
+	char *seglogname;
+	FILE *segment_log;
+
+	strcpy(seglogname, segment->segname);
+	strcat(seglogname, ".log");
+	segment_log = fopen(seglogname, "a");
+	fwrite(&segment->size, sizeof(int), 1, segment_log);
+	fwrite(segment->segbase, segment->size, 1, segment_log);
+	fclose(segment_log);
 	
 	//free regions
 	region_t *region = segment->regions;
@@ -140,25 +149,23 @@ void write_to_log(segment_t *segment){
 		free(region);
 		region = segment->regions;
 	}
-	
+
 	end_transaction(segment);
 }
 
-void load_and_update(segment_t *segment) {
+void load_and_update(segment_t *segment, char * segment_path, char * segment_log_path) {
 	FILE *segment_backer;
 	FILE *segment_log;
 	fpos_t log_head;
 	size_t old_size;
-	char * seglogname;
 	void *segment_change;
 		
 	segment->segbase = malloc(segment->size);
-	segment_backer = fopen(segment->segname, "r+");
+	segment_backer = fopen(segment_path, "r+");
 	fread(&old_size, sizeof(int), 1, segment_backer);
 	fread(segment->segbase, old_size, 1, segment_backer);
-	strcpy(seglogname, segment->segname);
-	strcat(seglogname, ".log");
-	segment_log = fopen(seglogname, "r");
+
+	segment_log = fopen(segment_log_path, "r");
 	fread(&log_head, sizeof(fpos_t), 1, segment_log);
 	fsetpos(segment_log, &log_head);
 	while (fread(segment->segbase, old_size, 1, segment_log) == old_size) {
@@ -175,6 +182,7 @@ void undo_changes(segment_t *segment){
 	region_t *region = segment->regions;
 	while(region != NULL){
 		//apply saved old-values to segment in a FILO order
+		//this line seems broken what is reb base in comparison to segbase
 		segment->segbase = memcpy(segment->segbase, region->regbase, region->size);
 		segment->regions = region->next;
 		free(region->regbase);
@@ -216,8 +224,15 @@ rvm_t rvm_init(const char *directory) {
 	rvm_node->rvm_id = (rvm_t) rvm_id++;
 		
 	error = mkdir(directory, S_IRUSR | S_IWUSR);
-	if (error) {
-		printf("You derped bro: %s\n", strerror(errno));
+	if (error == -1) {
+		if (errno == EEXIST) {
+			rvm_node->rvm_dir = directory;
+		} else {
+			printf("You derped bro: %s\n", strerror(errno));
+			return (rvm_t) -1;
+		}
+	} else {
+		rvm_node->rvm_dir = directory;
 	}
 	
 	return rvm_node->rvm_id;
@@ -228,14 +243,26 @@ rvm_t rvm_init(const char *directory) {
 //should memory be blank, or copied from some file?
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	segment_t *segment;
-	rvm_list_t *rvm_node = find_rvm(rvm);
+	rvm_list_t *rvm_node;
+	char *segment_path;
+	char *segment_log_path;
+	
+	rvm_node = find_rvm(rvm);
 	segment = find_segment_by_name(rvm_node->seg_list, segname);
+
+	strcpy(segment_path, segment->rvm_dir);
+	strcat(segment_path, "/");
+	strcat(segment_path, segment->segname);
+
+	strcpy(segment_log_path, segment_path);
+	strcat(segment_log_path, ".log");
+
 	if(segment != NULL){
 		//segment exists but has been unmapped &
 		//size_to_create is larger or eqaul to current size
 		if(segment->segbase == NULL && segment->size <= size_to_create){		
 			segment->size = size_to_create;
-			load_and_update(segment);
+			load_and_update(segment, segment_path, segment_log_path);
 
 		//segment needs to be elongated
 		}else if(segment->size < size_to_create){
@@ -245,28 +272,25 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		//tried to map existing or smaller segment
 		}else{
 			return (void *) -1;
-		}fpos_t log_head;
+		}
 	//segment does not exist
 	}else{
 		//check exist
 		FILE *new_segment_backer;
-		if (new_segment_backer = fopen(segname, "r")){
+		if (new_segment_backer = fopen(segment_path, "r")){
 			fread(&segment->size, sizeof(int), 1, new_segment_backer);
 			fclose(new_segment_backer);
-			load_and_update(segment);
+			load_and_update(segment, segment_path, segment_log_path);
 		}else{
 			//THIS SHOULD CORRECTLY INITIALIZE BACKING STORE AND LOG
 			FILE *new_segment_log;
-			char *seglogname;
 			fpos_t log_head;
 
-			new_segment_backer = fopen(segname, "w+");
+			new_segment_backer = fopen(segment_path, "w+");
 			fwrite(&size_to_create, sizeof(int), 1, new_segment_backer);
 			fclose(new_segment_backer);
-			
-			strcpy(seglogname, segment->segname);
-			strcat(seglogname, ".log");
-			new_segment_log = fopen(seglogname, "w+");
+
+			new_segment_log = fopen(segment_log_path, "w+");
 			fseek(new_segment_log, sizeof(fpos_t), SEEK_SET);
 			fgetpos(new_segment_log, &log_head);
 			rewind(new_segment_log);
@@ -277,6 +301,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 			segment = add_segment(rvm_node->seg_list,seg_base);
 			segment->size = size_to_create;
 			segment->segname = segname;
+			segment->rvm_dir = rvm_node->rvm_dir;
 		}
 	}
 	return segment->segbase;
@@ -342,7 +367,7 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 }
 
 void rvm_commit_trans(trans_t tid){
-//iterate through segments, write to log and end transaction on appropriate segments
+//iterate through segments, write to log and end transaction on appropriate segment
 //erase saved old-values from memory
 	rvm_t rvm = transactions[tid];
 	rvm_list_t *rvm_node = find_rvm(rvm);
@@ -381,6 +406,43 @@ void rvm_abort_trans(trans_t tid){
 
 
 //Logging
-void rvm_truncate_log(rvm_t rvm);
+void rvm_truncate_log(rvm_t rvm) {
+	segment_t *curr;
+	rvm_list_t *rvm_node;
+	char *segment_path;
+	char *segment_log_path;
+	FILE *segment_backer;
+	FILE *segment_log;
+	int log_read_size;
+	void *changes;
+
+	
+	rvm_node = find_rvm(rvm);
+	curr = rvm_node->seg_list->head;
+	while (curr->next != NULL) {
+		strcpy(segment_path, curr->rvm_dir);
+		strcat(segment_path, "/");
+		strcat(segment_path, curr->segname);
+
+		strcpy(segment_log_path, segment_path);
+		strcat(segment_log_path, ".log");
+
+		segment_log = fopen(segment_log_path, "r");
+		
+		while(fread(&log_read_size, sizeof(int), 1, segment_log) == sizeof(int)) {
+			changes = malloc(log_read_size);
+			fread(changes, log_read_size, 1, segment_log);
+			segment_backer = fopen(segment_path, "w+");
+			fwrite(&log_read_size, sizeof(int), 1, segment_backer);
+			fwrite(changes, log_read_size, 1, segment_backer);
+			fclose(segment_backer);
+			free(changes);
+		}
+		
+		fclose(segment_log);
+		segment_log = fopen(segment_log_path, "w+");
+		fclose(segment_log);
+	}
+}
 
 void rvm_verbose(int enable_flag);

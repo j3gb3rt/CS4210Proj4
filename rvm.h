@@ -1,3 +1,4 @@
+#include <sys/types.h>
 #define MAX_TRANSACTION 10000
 
 typedef unsigned int rvm_t;
@@ -11,6 +12,7 @@ typedef struct region {
 
 typedef struct segment {
 	void *segbase;
+	const char *rvm_dir;
 	const char *segname;
 	trans_t transaction;
 	size_t size;
@@ -24,6 +26,7 @@ typedef struct seg_list {
 
 typedef struct rvm_list {
 	rvm_t rvm_id;
+	const char * rvm_dir;
 	seg_list_t *seg_list;
 	struct rvm_list *next;
 } rvm_list_t;

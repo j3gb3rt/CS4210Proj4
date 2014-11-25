@@ -1,6 +1,6 @@
 /* basic.c - test that basic persistency works */
 
-#include "rvm.h"
+#include "../rvm.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,13 +18,16 @@ void proc1()
      trans_t trans;
      char* segs[0];
      
+	 printf("Starting rvm init\n");
      rvm = rvm_init("rvm_segments");
+	 printf("Init complete\n");
      rvm_destroy(rvm, "testseg");
+	 printf("Destroy complete\n");
      segs[0] = (char *) rvm_map(rvm, "testseg", 10000);
-
+	 printf("Map complete\n");
      
      trans = rvm_begin_trans(rvm, 1, (void **) segs);
-     
+     printf("Transaction begin!\n");
      rvm_about_to_modify(trans, segs[0], 0, 100);
      sprintf(segs[0], TEST_STRING);
      
