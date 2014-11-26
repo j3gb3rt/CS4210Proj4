@@ -250,12 +250,12 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	
 	rvm_node = find_rvm(rvm);
 	segment = find_segment_by_name(rvm_node->seg_list, segname);
-	segment_path = malloc(strlen(segment->rvm_dir) + 2 + strlen(segment->segname));
-	segment_log_path = malloc(strlen(segment->rvm_dir) + 6 + strlen(segment->segname));
+	segment_path = malloc(strlen(rvm_node->rvm_dir) + 2 + strlen(segname));
+	segment_log_path = malloc(strlen(rvm_node->rvm_dir) + 6 + strlen(segname));
 	
-	strcpy(segment_path, segment->rvm_dir);
+	strcpy(segment_path, rvm_node->rvm_dir);
 	strcat(segment_path, "/");
-	strcat(segment_path, segment->segname);
+	strcat(segment_path, segname);
 
 	strcpy(segment_log_path, segment_path);
 	strcat(segment_log_path, ".log");
@@ -291,8 +291,13 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 			FILE *new_segment_log;
 			fpos_t log_head;
 
-			new_segment_backer = fopen(segment_path, "w+");
-			fwrite(&size_to_create, sizeof(int), 1, new_segment_backer);
+			printf("backing path: %s\n", "rvm_segments/testseg");//segment_path);
+			new_segment_backer = fopen("rvm_segments/testseg");//segment_path, "w+");
+			int header = size_to_create;
+			if(new_segment_backer == NULL){
+				printf("open is broken\n");
+			}
+			fwrite(&header, sizeof(int), 1, new_segment_backer);
 			fclose(new_segment_backer);
 
 			new_segment_log = fopen(segment_log_path, "w+");

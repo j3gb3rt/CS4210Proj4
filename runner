@@ -1,0 +1,19 @@
+#!/bin/bash
+
+make clean
+make
+
+#T1 = "valgrind"
+#T2 = "gdb"
+if [ -z "$1" ];
+then
+	./basic
+
+elif [ "$1" == "valgrind" ];
+then
+	valgrind ./basic
+
+else [ "$1" == "gdb" ];
+	gdb ./basic
+fi
+
