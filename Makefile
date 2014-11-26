@@ -41,5 +41,5 @@ tests: $(OUT)
 
 
 clean :
-	@rm *.o bin/*.a mytest
+	@rm *.o bin/*.a mytest abort basic multi multiabort truncate
 	@echo Cleaned!

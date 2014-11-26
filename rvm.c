@@ -133,7 +133,9 @@ void end_transaction(segment_t *segment){
 void write_to_log(segment_t *segment){
 	char *seglogname;
 	FILE *segment_log;
-
+	
+	seglogname = malloc(strlen(segment->segname) + 5);
+	
 	strcpy(seglogname, segment->segname);
 	strcat(seglogname, ".log");
 	segment_log = fopen(seglogname, "a");
@@ -149,8 +151,8 @@ void write_to_log(segment_t *segment){
 		free(region);
 		region = segment->regions;
 	}
-
 	end_transaction(segment);
+	free(seglogname);
 }
 
 void load_and_update(segment_t *segment, char * segment_path, char * segment_log_path) {
@@ -158,7 +160,6 @@ void load_and_update(segment_t *segment, char * segment_path, char * segment_log
 	FILE *segment_log;
 	fpos_t log_head;
 	size_t old_size;
-	void *segment_change;
 		
 	segment->segbase = malloc(segment->size);
 	segment_backer = fopen(segment_path, "r+");
@@ -249,7 +250,9 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	
 	rvm_node = find_rvm(rvm);
 	segment = find_segment_by_name(rvm_node->seg_list, segname);
-
+	segment_path = malloc(strlen(segment->rvm_dir) + 2 + strlen(segment->segname));
+	segment_log_path = malloc(strlen(segment->rvm_dir) + 6 + strlen(segment->segname));
+	
 	strcpy(segment_path, segment->rvm_dir);
 	strcat(segment_path, "/");
 	strcat(segment_path, segment->segname);
@@ -271,6 +274,8 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		
 		//tried to map existing or smaller segment
 		}else{
+			free(segment_path);
+			free(segment_log_path);
 			return (void *) -1;
 		}
 	//segment does not exist
@@ -304,6 +309,8 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 			segment->rvm_dir = rvm_node->rvm_dir;
 		}
 	}
+	free(segment_path);
+	free(segment_log_path);
 	return segment->segbase;
 }
 
@@ -420,6 +427,9 @@ void rvm_truncate_log(rvm_t rvm) {
 	rvm_node = find_rvm(rvm);
 	curr = rvm_node->seg_list->head;
 	while (curr->next != NULL) {
+		segment_path = malloc(strlen(curr->rvm_dir) + 2 + strlen(curr->segname));
+		segment_log_path = malloc(strlen(curr->rvm_dir) + 6 + strlen(curr->segname));
+
 		strcpy(segment_path, curr->rvm_dir);
 		strcat(segment_path, "/");
 		strcat(segment_path, curr->segname);
@@ -442,6 +452,8 @@ void rvm_truncate_log(rvm_t rvm) {
 		fclose(segment_log);
 		segment_log = fopen(segment_log_path, "w+");
 		fclose(segment_log);
+		free(segment_path);
+		free(segment_log_path);
 	}
 }
 
