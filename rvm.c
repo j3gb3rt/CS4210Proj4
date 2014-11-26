@@ -224,7 +224,7 @@ rvm_t rvm_init(const char *directory) {
 	rvm_node->seg_list = create_seg_list();
 	rvm_node->rvm_id = (rvm_t) rvm_id++;
 		
-	error = mkdir(directory, S_IRUSR | S_IWUSR);
+	error = mkdir(directory, S_IRWXU);
 	if (error == -1) {
 		if (errno == EEXIST) {
 			rvm_node->rvm_dir = directory;
@@ -250,15 +250,22 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	
 	rvm_node = find_rvm(rvm);
 	segment = find_segment_by_name(rvm_node->seg_list, segname);
+	printf("segment found at %p\n", segment);
+
 	segment_path = malloc(strlen(rvm_node->rvm_dir) + 2 + strlen(segname));
 	segment_log_path = malloc(strlen(rvm_node->rvm_dir) + 6 + strlen(segname));
-	
+	printf("You made it past the mallocs with the following pointers\n");
+	printf("segment_path: %p\n", segment_path);
+	printf("segment_log_path: %p\n", segment_log_path);
+
 	strcpy(segment_path, rvm_node->rvm_dir);
 	strcat(segment_path, "/");
 	strcat(segment_path, segname);
+	printf("path to file: %s\n", segment_path);
 
 	strcpy(segment_log_path, segment_path);
 	strcat(segment_log_path, ".log");
+	printf("path to log: %s\n", segment_log_path);
 
 	if(segment != NULL){
 		//segment exists but has been unmapped &
@@ -283,19 +290,21 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		//check exist
 		FILE *new_segment_backer;
 		if (new_segment_backer = fopen(segment_path, "r")){
+			printf("Found an existing file. Loading it in!\n");
 			fread(&segment->size, sizeof(int), 1, new_segment_backer);
 			fclose(new_segment_backer);
 			load_and_update(segment, segment_path, segment_log_path);
 		}else{
+			printf("making a new file\n");
 			//THIS SHOULD CORRECTLY INITIALIZE BACKING STORE AND LOG
 			FILE *new_segment_log;
 			fpos_t log_head;
 
-			printf("backing path: %s\n", "rvm_segments/testseg");//segment_path);
-			new_segment_backer = fopen("rvm_segments/testseg");//segment_path, "w+");
+			printf("backing path: %s\n", segment_path);
+			new_segment_backer = fopen(segment_path, "w+");
 			int header = size_to_create;
 			if(new_segment_backer == NULL){
-				printf("open is broken\n");
+				printf("open is broken: %s\n", strerror(errno));
 			}
 			fwrite(&header, sizeof(int), 1, new_segment_backer);
 			fclose(new_segment_backer);

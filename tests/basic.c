@@ -29,14 +29,18 @@ void proc1()
      trans = rvm_begin_trans(rvm, 1, (void **) segs);
      printf("Transaction begin!\n");
      rvm_about_to_modify(trans, segs[0], 0, 100);
+	 printf("Ready to modify region 1!\n");
      sprintf(segs[0], TEST_STRING);
-     
-     rvm_about_to_modify(trans, segs[0], OFFSET2, 100);
-     sprintf(segs[0]+OFFSET2, TEST_STRING);
-     
-     rvm_commit_trans(trans);
+	 printf("Test String 1 written!\n");     
 
+     rvm_about_to_modify(trans, segs[0], OFFSET2, 100);
+	 printf("Ready to modify region 2!\n");
+     sprintf(segs[0]+OFFSET2, TEST_STRING);
+     printf("Test String 2 written!\n"); 
+     rvm_commit_trans(trans);
+	 printf("transaction commited!");
      abort();
+	 printf("Aborted!");
 }
 
 
@@ -67,19 +71,19 @@ int main(int argc, char **argv)
 {
      int pid;
 
-     pid = fork();
-     if(pid < 0) {
-	  perror("fork");
-	  exit(2);
-     }
-     if(pid == 0) {
-	  proc1();
-	  exit(0);
-     }
+     //pid = fork();
+     //if(pid < 0) {
+	 // perror("fork");
+	 // exit(2);
+     //}
+     //if(pid == 0) {
+	 // proc1();
+	 // exit(0);
+     //}
 
-     waitpid(pid, NULL, 0);
+     //waitpid(pid, NULL, 0);
 
-     proc2();
+     proc1();
 
      return 0;
 }
