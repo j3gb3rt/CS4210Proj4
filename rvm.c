@@ -204,7 +204,12 @@ void undo_changes(segment_t *segment){
 	while(region != NULL){
 		//apply saved old-values to segment in a FILO order
 		//this line seems broken what is reb base in comparison to segbase
-		segment->segbase = memcpy(segment->segbase, region->regbase, region->size);
+		printf("You found a secret\n");
+		printf("Offset: %i\n", region->offset);
+		printf("Before segbase + offset: %s\n", (char *) segment->segbase + region->offset);
+		printf("Before regbase: %s\n", (char *) region->regbase);
+		memcpy(segment->segbase + region->offset, region->regbase, region->size);
+		printf("After segbase + offset: %s\n", (char *) segment->segbase + region->offset);
 		segment->regions = region->next;
 		free(region->regbase);
 		free(region);
@@ -460,6 +465,7 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 		region_t *region = malloc(sizeof(region_t));
 		region->regbase = malloc(size);
 		region->next = segment->regions;
+		region->offset = offset;
 		region->size = size;
 		segment->regions = region;
 		//check to make sure region is in segment

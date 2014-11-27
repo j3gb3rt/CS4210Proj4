@@ -6,7 +6,8 @@ typedef unsigned int trans_t;
 
 typedef struct region {
 	void *regbase;
-	size_t size;		
+	size_t size;	
+	int offset;	
 	struct region *next;
 } region_t;
 

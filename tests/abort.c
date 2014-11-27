@@ -35,6 +35,8 @@ int main(int argc, char **argv)
      sprintf(seg+OFFSET2, TEST_STRING1);
      
      rvm_commit_trans(trans);
+	 printf("%s\n", seg);
+	 printf("%s\n", seg+OFFSET2);
 
      /* start writing some different data, but abort */
      trans = rvm_begin_trans(rvm, 1, segs);
@@ -44,8 +46,14 @@ int main(int argc, char **argv)
      rvm_about_to_modify(trans, seg, OFFSET2, 100);
      sprintf(seg+OFFSET2, TEST_STRING2);
 
-     rvm_abort_trans(trans);
+	 printf("%s\n", seg);
+	 printf("%s\n", seg+OFFSET2);
 
+	 rvm_abort_trans(trans);
+
+	 printf("%s\n", seg);
+	 printf("%s\n", seg+OFFSET2);
+		
 
      /* test that the data was restored */
      if(strcmp(seg+OFFSET2, TEST_STRING1)) {
