@@ -39,14 +39,14 @@ void remove_segment(seg_list_t *list, const char *segname){
 	if(curr == NULL){
 		return;
 	}else{
-		if(curr->segname == segname){
+		if(strcmp(curr->segname, segname) == 0){
 			list->head = curr->next;
 			free(curr);
 		}else{
 			segment_t *prev = curr;
 			curr = curr->next;
 			while(prev->next != NULL){
-				if(curr->segname == segname){
+				if(strcmp(curr->segname, segname) ==0) {
 					prev->next = curr->next;
 					free(curr);
 					curr = prev->next;
@@ -83,13 +83,13 @@ segment_t *find_segment_by_name(seg_list_t *list, const char *segname){
 	if(curr == NULL){
 		return NULL;
 	}else{
-		if(curr->segname == segname){
+		if(strcmp(curr->segname, segname) == 0) {
 			return curr;
 		}
 	}
 	while(curr->next != NULL){
 		curr = curr->next;
-		if(curr->segname == segname){
+		if(strcmp(curr->segname, segname) == 0) {
 			return curr;
 		}
 	}
@@ -142,7 +142,7 @@ void write_to_log(segment_t *segment){
 	strcat(seglogname, segment->segname);
 	strcat(seglogname, ".log");
 	segment_log = fopen(seglogname, "a");
-	fwrite(&segment->size, sizeof(int), 1, segment_log);
+	fwrite(&segment->size, sizeof(size_t), 1, segment_log);
 	fwrite(segment->segbase, segment->size, 1, segment_log);
 	fclose(segment_log);
 	
@@ -166,13 +166,13 @@ void load_and_update(segment_t *segment, char * segment_path, char * segment_log
 		
 	segment->segbase = malloc(segment->size);
 	segment_backer = fopen(segment_path, "r+");
-	fread(&old_size, sizeof(int), 1, segment_backer);
+	fread(&old_size, sizeof(size_t), 1, segment_backer);
 	printf("Backing File Segment size: %u\n", (unsigned int) old_size);
 	fread(segment->segbase, old_size, 1, segment_backer);
 	printf("Segment is : %s\n", (char *) segment->segbase);
 
 	segment_log = fopen(segment_log_path, "r");
-	while (fread(&log_entry_size, sizeof(int), 1, segment_log) == sizeof(int)) {
+	while (fread(&log_entry_size, sizeof(size_t), 1, segment_log) == sizeof(size_t)) {
 		fread(segment->segbase, log_entry_size, 1, segment_log);
 		printf("Segment is : %s\n", (char *) segment->segbase);
 		//If we move to region changes, things will actually happen here
@@ -341,15 +341,14 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		printf("making a new file\n");
 		//THIS SHOULD CORRECTLY INITIALIZE BACKING STORE AND LOG
 		FILE *new_segment_log;
-		fpos_t log_head;
 
 		printf("backing path: %s\n", segment_path);
 		new_segment_backer = fopen(segment_path, "w+");
-		int header = size_to_create;
+		size_t header = (size_t) size_to_create;
 		if(new_segment_backer == NULL){
 			printf("open is broken: %s\n", strerror(errno));
 		}
-		fwrite(&header, sizeof(int), 1, new_segment_backer);
+		fwrite(&header, sizeof(size_t), 1, new_segment_backer);
 		fclose(new_segment_backer);
 
 		new_segment_log = fopen(segment_log_path, "w+");
@@ -496,11 +495,11 @@ void rvm_truncate_log(rvm_t rvm) {
 
 		segment_log = fopen(segment_log_path, "r");
 		
-		while(fread(&log_read_size, sizeof(int), 1, segment_log) == sizeof(int)) {
+		while(fread(&log_read_size, sizeof(size_t), 1, segment_log) == sizeof(size_t)) {
 			changes = malloc(log_read_size);
 			fread(changes, log_read_size, 1, segment_log);
 			segment_backer = fopen(segment_path, "w+");
-			fwrite(&log_read_size, sizeof(int), 1, segment_backer);
+			fwrite(&log_read_size, sizeof(size_t), 1, segment_backer);
 			fwrite(changes, log_read_size, 1, segment_backer);
 			fclose(segment_backer);
 			free(changes);
