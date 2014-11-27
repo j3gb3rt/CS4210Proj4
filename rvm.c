@@ -133,6 +133,8 @@ void end_transaction(segment_t *segment){
 
 void write_to_log(segment_t *segment){
 	char *seglogname;
+	size_t outafterinsize;
+	char *outafterin;
 	FILE *segment_log;
 	
 	seglogname = malloc(strlen(segment->rvm_dir) + strlen(segment->segname) + 6);
@@ -141,10 +143,19 @@ void write_to_log(segment_t *segment){
 	strcat(seglogname, "/");
 	strcat(seglogname, segment->segname);
 	strcat(seglogname, ".log");
+	printf("Segment: %s\n", (char *) segment->segbase);
 	segment_log = fopen(seglogname, "a");
 	fwrite(&segment->size, sizeof(size_t), 1, segment_log);
 	fwrite(segment->segbase, segment->size, 1, segment_log);
 	fclose(segment_log);
+
+	outafterin = malloc(segment->size);
+	segment_log = fopen(seglogname, "r");
+	fread(&outafterinsize, sizeof(size_t), 1, segment_log);
+	fread(outafterin, segment->size, 1, segment_log);
+	fclose(segment_log);
+
+	printf("Segment After: %s\n", outafterin);
 	
 	//free regions
 	region_t *region = segment->regions;
