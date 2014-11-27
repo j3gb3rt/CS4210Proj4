@@ -205,6 +205,7 @@ void undo_changes(segment_t *segment){
 //must do init function before starting a transaction
 rvm_t rvm_init(const char *directory) {
 	int error;
+	segment_t *segment;
 
 	//if transactions hasn't been allocated, do it
 	if(transactions == NULL){
