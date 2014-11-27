@@ -14,6 +14,7 @@
 rvm_t *transactions;
 rvm_list_t *rvm_list;
 rvm_t rvm_id = 0;
+int logging_enabled = 0;
 
 //initializes seg_list
 seg_list_t *create_seg_list(){
@@ -133,8 +134,6 @@ void end_transaction(segment_t *segment){
 
 void write_to_log(segment_t *segment){
 	char *seglogname;
-	size_t outafterinsize;
-	char *outafterin;
 	FILE *segment_log;
 	
 	seglogname = malloc(strlen(segment->rvm_dir) + strlen(segment->segname) + 6);
@@ -143,20 +142,10 @@ void write_to_log(segment_t *segment){
 	strcat(seglogname, "/");
 	strcat(seglogname, segment->segname);
 	strcat(seglogname, ".log");
-	printf("Segment: %s\n", (char *) segment->segbase);
 	segment_log = fopen(seglogname, "a");
 	fwrite(&segment->size, sizeof(size_t), 1, segment_log);
 	fwrite(segment->segbase, segment->size, 1, segment_log);
 	fclose(segment_log);
-
-	outafterin = malloc(segment->size);
-	segment_log = fopen(seglogname, "r");
-	fread(&outafterinsize, sizeof(size_t), 1, segment_log);
-	fread(outafterin, segment->size, 1, segment_log);
-	fclose(segment_log);
-
-	printf("Segment After: %s\n", outafterin);
-	free(outafterin);	
 
 	//free regions
 	region_t *region = segment->regions;
@@ -176,25 +165,23 @@ void load_and_update(segment_t *segment, char * segment_path, char * segment_log
 	size_t old_size;
 	size_t log_entry_size;
 	size_t return_from_fread;
-		
+	
+	if(logging_enabled) {
+		printf("[RVM] Loading segment %s from file\n", segment->segname);
+	}	
 	segment->segbase = malloc(segment->size);
 	segment_backer = fopen(segment_path, "r+");
 	fread(&old_size, sizeof(size_t), 1, segment_backer);
-	printf("Backing File Segment size: %u\n", (unsigned int) old_size);
 	fread(segment->segbase, old_size, 1, segment_backer);
-	printf("Segment is : %s\n", (char *) segment->segbase);
-
+	
+	if(logging_enabled) {
+		printf("[RVM] Bringing %s up to date\n", segment->segname);
+	}
 	segment_log = fopen(segment_log_path, "r");
 	while ((return_from_fread = fread(&log_entry_size, sizeof(size_t), 1, segment_log)) != 0) {
-		printf("Logging File Segment size: %u\n", (unsigned int) log_entry_size);
 		fread(segment->segbase, log_entry_size, 1, segment_log);
-		printf("Segment is : %s\n", (char *) segment->segbase);
-		//If we move to region changes, things will actually happen here
 	};
 	
-
-	//rewind(segment_backer);
-	//fwrite(&segment->size, sizeof(int), 1, segment_backer);
 	fclose(segment_backer);
 	fclose(segment_log);
 }
@@ -203,13 +190,7 @@ void undo_changes(segment_t *segment){
 	region_t *region = segment->regions;
 	while(region != NULL){
 		//apply saved old-values to segment in a FILO order
-		//this line seems broken what is reb base in comparison to segbase
-		printf("You found a secret\n");
-		printf("Offset: %i\n", region->offset);
-		printf("Before segbase + offset: %s\n", (char *) segment->segbase + region->offset);
-		printf("Before regbase: %s\n", (char *) region->regbase);
 		memcpy(segment->segbase + region->offset, region->regbase, region->size);
-		printf("After segbase + offset: %s\n", (char *) segment->segbase + region->offset);
 		segment->regions = region->next;
 		free(region->regbase);
 		free(region);
@@ -226,7 +207,9 @@ void undo_changes(segment_t *segment){
 rvm_t rvm_init(const char *directory) {
 	int error;
 	segment_t *segment;
-
+	if(logging_enabled) {
+		printf("[RVM] Initializing directory %s\n", directory);
+	}
 	//if transactions hasn't been allocated, do it
 	if(transactions == NULL){
 		transactions = calloc(MAX_TRANSACTION, sizeof(int));
@@ -255,7 +238,7 @@ rvm_t rvm_init(const char *directory) {
 	if (error == 0 || errno == EEXIST) {
 		rvm_node->rvm_dir = directory;
 	} else {
-		printf("You derped bro: %s\n", strerror(errno));
+		printf("Can't create directory: %s\n", strerror(errno));
 		return (rvm_t) -1;
 	}
 
@@ -265,40 +248,42 @@ rvm_t rvm_init(const char *directory) {
 	size_t file_name_length;
 	int is_log_file;
 
+	if(logging_enabled) {
+		printf("[RVM] Importing existing segment names\n");
+	}
 	if ((dir = opendir(directory)) != NULL) {
  		while ((ent = readdir(dir)) != NULL) {
     		if (!(strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)) {
-				//check cor entries ending in .log
 				is_log_file = 0;				
 
 				file_name_length = strlen(ent->d_name);		
 				if (file_name_length > 5) {
-					printf("File ends with %s\n", &ent->d_name[file_name_length - 4]);
 					is_log_file = !strcmp(&ent->d_name[file_name_length - 4], ".log");
 				}
 				
-				if (!is_log_file) {
-					printf("Adding a segment for: %s\n", ent->d_name);					
+				if (!is_log_file) {				
 					segment = add_segment(rvm_node->seg_list, NULL);
 					segname = malloc(strlen(ent->d_name) + 1);
-					printf("segname ptr %p\n", segment->segname);
 					segment->size = 0;
 					strcpy(segname, ent->d_name);
 					segment->segname = segname;
-					printf("Segname set to : %s\n", segment->segname);
 					segment->rvm_dir = rvm_node->rvm_dir;
+					if(logging_enabled) {
+						printf("[RVM] Imported %s\n", segname);
+					}
 				}
 			}
 		}
   	}
   	closedir (dir);
-
+	if(logging_enabled) {
+		printf("[RVM] Initializiation finished!\n");
+	}
 	return rvm_node->rvm_id;
 }
 
 //check through seg_list. if exists with same size error
 //else extend memory of segment.
-//should memory be blank, or copied from some file?
 void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	segment_t *segment;
 	rvm_list_t *rvm_node;
@@ -307,22 +292,16 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	
 	rvm_node = find_rvm(rvm);
 	segment = find_segment_by_name(rvm_node->seg_list, segname);
-	printf("segment found at %p\n", segment);
 
 	segment_path = malloc(strlen(rvm_node->rvm_dir) + 2 + strlen(segname));
 	segment_log_path = malloc(strlen(rvm_node->rvm_dir) + 6 + strlen(segname));
-	printf("You made it past the mallocs with the following pointers\n");
-	printf("segment_path: %p\n", segment_path);
-	printf("segment_log_path: %p\n", segment_log_path);
 
 	strcpy(segment_path, rvm_node->rvm_dir);
 	strcat(segment_path, "/");
 	strcat(segment_path, segname);
-	printf("path to file: %s\n", segment_path);
 
 	strcpy(segment_log_path, segment_path);
 	strcat(segment_log_path, ".log");
-	printf("path to log: %s\n", segment_log_path);
 
 	if(segment != NULL){
 		//segment exists but has been unmapped &
@@ -344,31 +323,9 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		}
 	//segment does not exist
 	}else{
-		//check exist
 		FILE *new_segment_backer;
-		//int size;
-
-		//if (new_segment_backer = fopen(segment_path, "r")){
-		//	printf("Found an existing file. Loading it in!\n");
-		//	printf("File pointer: %p\n", new_segment_backer);
-
-		//	//void *seg_base = malloc(size_to_create);
-		//	segment = add_segment(rvm_node->seg_list, NULL);  //seg_base);
-		//	segment->size = size_to_create;
-		//	segment->segname = segname;
-		//	segment->rvm_dir = rvm_node->rvm_dir;
-
-		//	fread(&size, sizeof(int), 1, new_segment_backer);
-		//	fclose(new_segment_backer);
-		//	//add return to fail if commits make segbase larger than size to create
-		//	load_and_update(segment, segment_path, segment_log_path);
-		//}else{
-
-		printf("making a new file\n");
-		//THIS SHOULD CORRECTLY INITIALIZE BACKING STORE AND LOG
 		FILE *new_segment_log;
 
-		printf("backing path: %s\n", segment_path);
 		new_segment_backer = fopen(segment_path, "w+");
 		size_t header = (size_t) size_to_create;
 		if(new_segment_backer == NULL){
@@ -378,10 +335,6 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		fclose(new_segment_backer);
 
 		new_segment_log = fopen(segment_log_path, "w+");
-		//fseek(new_segment_log, sizeof(fpos_t), SEEK_SET);
-		//fgetpos(new_segment_log, &log_head);
-		//rewind(new_segment_log);
-		//fwrite(&log_head, sizeof(fpos_t), 1, new_segment_log); 
 		fclose(new_segment_log);
 
 		void *seg_base = malloc(size_to_create);
@@ -389,20 +342,24 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		segment->size = size_to_create;
 		segment->segname = segname;
 		segment->rvm_dir = rvm_node->rvm_dir;
-		//}
 	}
 	free(segment_path);
 	free(segment_log_path);
+	if(logging_enabled) {
+		printf("[RVM] Mapped segment %s\n", segment->segname);
+	}
 	return segment->segbase;
 }
 
 void rvm_unmap(rvm_t rvm, void *segbase){
 	//unmalloc segbase
-	//if they can unmap during a transaction, this needs more work
 	rvm_list_t *rvm_node = find_rvm(rvm);
 	segment_t *segment = find_segment_by_ptr(rvm_node->seg_list, segbase);
 	free(segbase);
 	segbase = NULL;
+	if(logging_enabled) {
+		printf("[RVM] Unmapped segment %s\n", segment->segname);
+	}
 }
 
 void rvm_destroy(rvm_t rvm, const char *segname){
@@ -413,23 +370,21 @@ void rvm_destroy(rvm_t rvm, const char *segname){
 
 	segment_path = malloc(strlen(rvm_node->rvm_dir) + 2 + strlen(segname));
 	segment_log_path = malloc(strlen(rvm_node->rvm_dir) + 6 + strlen(segname));
-	printf("You made it past the mallocs with the following pointers\n");
-	printf("segment_path: %p\n", segment_path);
-	printf("segment_log_path: %p\n", segment_log_path);
 
 	strcpy(segment_path, rvm_node->rvm_dir);
 	strcat(segment_path, "/");
 	strcat(segment_path, segname);
-	printf("path to file: %s\n", segment_path);
 
 	strcpy(segment_log_path, segment_path);
 	strcat(segment_log_path, ".log");
-	printf("path to log: %s\n", segment_log_path);
 
 	remove(segment_path);
 	remove(segment_log_path);
-	
+
 	remove_segment(rvm_node->seg_list, segname);
+	if(logging_enabled) {
+		printf("[RVM] Revomed %s, it's backing file, and it's log\n", segname);
+	}
 }
 
 	
@@ -449,6 +404,9 @@ trans_t rvm_begin_trans(rvm_t rvm, int numsegs, void **segbases){
 	trans_t transaction= start_transaction(rvm);	//generate a trans number
 	for(i = 0; i <numsegs; i++){
 		segments[i]->transaction = transaction; 
+	}
+	if(logging_enabled) {
+		printf("[RVM] Ready to begin transcation with id %u\n", (unsigned int) transaction);
 	}
 	return transaction;	
 }
@@ -471,6 +429,9 @@ void rvm_about_to_modify(trans_t tid, void *segbase, int offset, int size){
 		//check to make sure region is in segment
 		if(segment->size >= offset + size){
 			region->regbase = memcpy(region->regbase, segbase + offset, size);
+			if(logging_enabled) {
+				printf("[RVM] Prepared for modifications to %s\n", segment->segname);
+			}
 		}else{
 			printf("error, tried to save region not in segment\n");
 		}
@@ -483,13 +444,22 @@ void rvm_commit_trans(trans_t tid){
 	rvm_t rvm = transactions[tid];
 	rvm_list_t *rvm_node = find_rvm(rvm);
 	segment_t *curr = rvm_node->seg_list->head;
+	if(logging_enabled) {
+		printf("[RVM] Commiting transaction with id %u\n", (unsigned int) tid);
+	}
 	if(curr != NULL){
 		if(curr->transaction == tid){
+			if(logging_enabled) {
+				printf("[RVM] Writing changes to %s's log\n", curr->segname);
+			}
 			write_to_log(curr);// end transaction in write_to_log
 		}
 		while(curr->next != NULL){
 			curr = curr->next;
 			if(curr->transaction == tid){
+				if(logging_enabled) {
+					printf("[RVM] Writing changes to %s's log\n", curr->segname);
+				}
 				write_to_log(curr);
 			}	
 		}	
@@ -502,13 +472,22 @@ void rvm_abort_trans(trans_t tid){
 	rvm_t rvm = transactions[tid];
 	rvm_list_t *rvm_node = find_rvm(rvm);
 	segment_t *curr = rvm_node->seg_list->head;
+	if(logging_enabled) {
+		printf("[RVM] Aborting transaction with id %u\n", (unsigned int) tid);
+	}
 	if(curr != NULL){
 		if(curr->transaction == tid){
+			if(logging_enabled) {
+				printf("[RVM] Reverting changes for segment %s\n", curr->segname);
+			}
 			undo_changes(curr);
 		}
 		while(curr->next != NULL){
 			curr = curr->next;
 			if(curr->transaction == tid){
+				if(logging_enabled) {
+					printf("[RVM] Reverting changes for segment %s\n", curr->segname);
+				}
 				undo_changes(curr);
 			}
 		}
@@ -531,19 +510,18 @@ void rvm_truncate_log(rvm_t rvm) {
 	rvm_node = find_rvm(rvm);
 	curr = rvm_node->seg_list->head;
 	do {
-		printf("You're in the loop\n");
 		segment_path = malloc(strlen(curr->rvm_dir) + 2 + strlen(curr->segname));
 		segment_log_path = malloc(strlen(curr->rvm_dir) + 6 + strlen(curr->segname));
-		printf("You're in the loop\n");
 		strcpy(segment_path, curr->rvm_dir);
 		strcat(segment_path, "/");
 		strcat(segment_path, curr->segname);
-		printf("You're in the loop\n");
+		if(logging_enabled) {
+			printf("[RVM] Truncating log for segment %s\n", curr->segname);
+		}
 		strcpy(segment_log_path, segment_path);
 		strcat(segment_log_path, ".log");
-		printf("You're in the loop: %s\n", segment_log_path);
 		segment_log = fopen(segment_log_path, "r");
-		printf("You're in the loop %p\n", segment_log);
+		
 		while(fread(&log_read_size, sizeof(size_t), 1, segment_log) != 0) {
 			changes = malloc(log_read_size);
 			fread(changes, log_read_size, 1, segment_log);
@@ -562,4 +540,6 @@ void rvm_truncate_log(rvm_t rvm) {
 	} while (curr->next != NULL);
 }
 
-void rvm_verbose(int enable_flag){}
+void rvm_verbose(int enable_flag){
+	logging_enabled = enable_flag;
+}

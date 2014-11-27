@@ -19,6 +19,7 @@ void proc1()
      char* segs[0];
      
      rvm = rvm_init("rvm_segments");
+	 rvm_verbose(1);
      rvm_destroy(rvm, "testseg");
      segs[0] = (char *) rvm_map(rvm, "testseg", 10000);
 

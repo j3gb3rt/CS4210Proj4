@@ -20,7 +20,6 @@ $(OUT): $(OBJ)
 	ar rcs $(OUT) $(OBJ)
 
 tests: $(OUT)
-	$(CC) $(CFLAGS) tests/me_test.c $(OUT) -o mytest
 	$(CC) $(CFLAGS) tests/abort.c $(OUT) -o abort
 	$(CC) $(CFLAGS) tests/basic.c $(OUT) -o basic
 	$(CC) $(CFLAGS) tests/multi.c $(OUT) -o multi
@@ -28,5 +27,5 @@ tests: $(OUT)
 	$(CC) $(CFLAGS) tests/truncate.c $(OUT) -o truncate
 
 clean :
-	@rm *.o bin/*.a mytest abort basic multi multiabort truncate
+	@rm *.o bin/*.a abort basic multi multiabort truncate
 	@echo Cleaned!
