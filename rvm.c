@@ -156,7 +156,8 @@ void write_to_log(segment_t *segment){
 	fclose(segment_log);
 
 	printf("Segment After: %s\n", outafterin);
-	
+	free(outafterin);	
+
 	//free regions
 	region_t *region = segment->regions;
 	while(region != (region_t *) NULL){
@@ -174,6 +175,7 @@ void load_and_update(segment_t *segment, char * segment_path, char * segment_log
 	FILE *segment_log;
 	size_t old_size;
 	size_t log_entry_size;
+	size_t return_from_fread;
 		
 	segment->segbase = malloc(segment->size);
 	segment_backer = fopen(segment_path, "r+");
@@ -183,12 +185,14 @@ void load_and_update(segment_t *segment, char * segment_path, char * segment_log
 	printf("Segment is : %s\n", (char *) segment->segbase);
 
 	segment_log = fopen(segment_log_path, "r");
-	while (fread(&log_entry_size, sizeof(size_t), 1, segment_log) == sizeof(size_t)) {
+	while ((return_from_fread = fread(&log_entry_size, sizeof(size_t), 1, segment_log)) != 0) {
+		printf("Logging File Segment size: %u\n", (unsigned int) log_entry_size);
 		fread(segment->segbase, log_entry_size, 1, segment_log);
 		printf("Segment is : %s\n", (char *) segment->segbase);
 		//If we move to region changes, things will actually happen here
 	};
-	
+	printf("Bytes from fread: %u\nSize of size_t: %u\n", (unsigned int) return_from_fread, (unsigned int) sizeof(size_t));
+
 	//rewind(segment_backer);
 	//fwrite(&segment->size, sizeof(int), 1, segment_backer);
 	fclose(segment_backer);
