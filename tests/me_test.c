@@ -3,10 +3,8 @@
 
 int main(int argc, char **argv)
 {
-	if (argc != 2) {
-		printf("just give me a directory man. How is it that hard?");
-	}
-	else {
-		rvm_init(argv[1]);
-	}
+     rvm_t rvm;
+     
+     rvm = rvm_init("rvm_segments");
+     rvm_destroy(rvm, "testseg");
 }

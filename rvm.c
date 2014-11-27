@@ -191,7 +191,7 @@ void load_and_update(segment_t *segment, char * segment_path, char * segment_log
 		printf("Segment is : %s\n", (char *) segment->segbase);
 		//If we move to region changes, things will actually happen here
 	};
-	printf("Bytes from fread: %u\nSize of size_t: %u\n", (unsigned int) return_from_fread, (unsigned int) sizeof(size_t));
+	
 
 	//rewind(segment_backer);
 	//fwrite(&segment->size, sizeof(int), 1, segment_backer);
@@ -231,6 +231,7 @@ rvm_t rvm_init(const char *directory) {
 	rvm_list_t *curr;
 	//add new rvm_node
 	if(rvm_list == NULL){
+
 		rvm_node = malloc(sizeof(rvm_list_t));
 		rvm_list = rvm_node;
 	}else{
@@ -255,6 +256,7 @@ rvm_t rvm_init(const char *directory) {
 
 	DIR *dir;
 	struct dirent *ent;
+	char * segname;
 	size_t file_name_length;
 	int is_log_file;
 
@@ -271,10 +273,14 @@ rvm_t rvm_init(const char *directory) {
 				}
 				
 				if (!is_log_file) {
-					printf("Adding a segment for: %s\n", ent->d_name);
+					printf("Adding a segment for: %s\n", ent->d_name);					
 					segment = add_segment(rvm_node->seg_list, NULL);
+					segname = malloc(strlen(ent->d_name) + 1);
+					printf("segname ptr %p\n", segment->segname);
 					segment->size = 0;
-					segment->segname = ent->d_name;
+					strcpy(segname, ent->d_name);
+					segment->segname = segname;
+					printf("Segname set to : %s\n", segment->segname);
 					segment->rvm_dir = rvm_node->rvm_dir;
 				}
 			}
@@ -395,8 +401,29 @@ void rvm_unmap(rvm_t rvm, void *segbase){
 }
 
 void rvm_destroy(rvm_t rvm, const char *segname){
-	remove(segname);
+	char *segment_path;
+	char *segment_log_path;
+
 	rvm_list_t *rvm_node = find_rvm(rvm);
+
+	segment_path = malloc(strlen(rvm_node->rvm_dir) + 2 + strlen(segname));
+	segment_log_path = malloc(strlen(rvm_node->rvm_dir) + 6 + strlen(segname));
+	printf("You made it past the mallocs with the following pointers\n");
+	printf("segment_path: %p\n", segment_path);
+	printf("segment_log_path: %p\n", segment_log_path);
+
+	strcpy(segment_path, rvm_node->rvm_dir);
+	strcat(segment_path, "/");
+	strcat(segment_path, segname);
+	printf("path to file: %s\n", segment_path);
+
+	strcpy(segment_log_path, segment_path);
+	strcat(segment_log_path, ".log");
+	printf("path to log: %s\n", segment_log_path);
+
+	remove(segment_path);
+	remove(segment_log_path);
+	
 	remove_segment(rvm_node->seg_list, segname);
 }
 
@@ -497,20 +524,21 @@ void rvm_truncate_log(rvm_t rvm) {
 	
 	rvm_node = find_rvm(rvm);
 	curr = rvm_node->seg_list->head;
-	while (curr->next != NULL) {
+	do {
+		printf("You're in the loop\n");
 		segment_path = malloc(strlen(curr->rvm_dir) + 2 + strlen(curr->segname));
 		segment_log_path = malloc(strlen(curr->rvm_dir) + 6 + strlen(curr->segname));
-
+		printf("You're in the loop\n");
 		strcpy(segment_path, curr->rvm_dir);
 		strcat(segment_path, "/");
 		strcat(segment_path, curr->segname);
-
+		printf("You're in the loop\n");
 		strcpy(segment_log_path, segment_path);
 		strcat(segment_log_path, ".log");
-
+		printf("You're in the loop: %s\n", segment_log_path);
 		segment_log = fopen(segment_log_path, "r");
-		
-		while(fread(&log_read_size, sizeof(size_t), 1, segment_log) == sizeof(size_t)) {
+		printf("You're in the loop %p\n", segment_log);
+		while(fread(&log_read_size, sizeof(size_t), 1, segment_log) != 0) {
 			changes = malloc(log_read_size);
 			fread(changes, log_read_size, 1, segment_log);
 			segment_backer = fopen(segment_path, "w+");
@@ -518,14 +546,14 @@ void rvm_truncate_log(rvm_t rvm) {
 			fwrite(changes, log_read_size, 1, segment_backer);
 			fclose(segment_backer);
 			free(changes);
-		}
+		} 
 		
 		fclose(segment_log);
-		segment_log = fopen(segment_log_path, "w+");
+		segment_log = fopen(segment_log_path, "w");
 		fclose(segment_log);
 		free(segment_path);
 		free(segment_log_path);
-	}
+	} while (curr->next != NULL);
 }
 
 void rvm_verbose(int enable_flag){}
