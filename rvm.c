@@ -240,13 +240,28 @@ rvm_t rvm_init(const char *directory) {
 
 	DIR *dir;
 	struct dirent *ent;
+	size_t file_name_length;
+	int is_log_file;
+
 	if ((dir = opendir(directory)) != NULL) {
  		while ((ent = readdir(dir)) != NULL) {
     		if (!(strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)) {
-				segment = add_segment(rvm_node->seg_list, NULL);
-				segment->size = 0;
-				segment->segname = ent->d_name;
-				segment->rvm_dir = rvm_node->rvm_dir;
+				//check cor entries ending in .log
+				is_log_file = 0;				
+
+				file_name_length = strlen(ent->d_name);		
+				if (file_name_length > 5) {
+					printf("File ends with %s\n", &ent->d_name[file_name_length - 4]);
+					is_log_file = !strcmp(&ent->d_name[file_name_length - 4], ".log");
+				}
+				
+				if (!is_log_file) {
+					printf("Adding a segment for: %s\n", ent->d_name);
+					segment = add_segment(rvm_node->seg_list, NULL);
+					segment->size = 0;
+					segment->segname = ent->d_name;
+					segment->rvm_dir = rvm_node->rvm_dir;
+				}
 			}
 		}
   	}
@@ -305,50 +320,51 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 	}else{
 		//check exist
 		FILE *new_segment_backer;
-		int size;
+		//int size;
 
-		if (new_segment_backer = fopen(segment_path, "r")){
-			printf("Found an existing file. Loading it in!\n");
-			printf("File pointer: %p\n", new_segment_backer);
+		//if (new_segment_backer = fopen(segment_path, "r")){
+		//	printf("Found an existing file. Loading it in!\n");
+		//	printf("File pointer: %p\n", new_segment_backer);
 
-			//void *seg_base = malloc(size_to_create);
-			segment = add_segment(rvm_node->seg_list, NULL);  //seg_base);
-			segment->size = size_to_create;
-			segment->segname = segname;
-			segment->rvm_dir = rvm_node->rvm_dir;
+		//	//void *seg_base = malloc(size_to_create);
+		//	segment = add_segment(rvm_node->seg_list, NULL);  //seg_base);
+		//	segment->size = size_to_create;
+		//	segment->segname = segname;
+		//	segment->rvm_dir = rvm_node->rvm_dir;
 
-			fread(&size, sizeof(int), 1, new_segment_backer);
-			fclose(new_segment_backer);
-			//add return to fail if commits make segbase larger than size to create
-			load_and_update(segment, segment_path, segment_log_path);
-		}else{
-			printf("making a new file\n");
-			//THIS SHOULD CORRECTLY INITIALIZE BACKING STORE AND LOG
-			FILE *new_segment_log;
-			fpos_t log_head;
+		//	fread(&size, sizeof(int), 1, new_segment_backer);
+		//	fclose(new_segment_backer);
+		//	//add return to fail if commits make segbase larger than size to create
+		//	load_and_update(segment, segment_path, segment_log_path);
+		//}else{
 
-			printf("backing path: %s\n", segment_path);
-			new_segment_backer = fopen(segment_path, "w+");
-			int header = size_to_create;
-			if(new_segment_backer == NULL){
-				printf("open is broken: %s\n", strerror(errno));
-			}
-			fwrite(&header, sizeof(int), 1, new_segment_backer);
-			fclose(new_segment_backer);
+		printf("making a new file\n");
+		//THIS SHOULD CORRECTLY INITIALIZE BACKING STORE AND LOG
+		FILE *new_segment_log;
+		fpos_t log_head;
 
-			new_segment_log = fopen(segment_log_path, "w+");
-			//fseek(new_segment_log, sizeof(fpos_t), SEEK_SET);
-			//fgetpos(new_segment_log, &log_head);
-			//rewind(new_segment_log);
-			//fwrite(&log_head, sizeof(fpos_t), 1, new_segment_log); 
-			fclose(new_segment_log);
-
-			void *seg_base = malloc(size_to_create);
-			segment = add_segment(rvm_node->seg_list,seg_base);
-			segment->size = size_to_create;
-			segment->segname = segname;
-			segment->rvm_dir = rvm_node->rvm_dir;
+		printf("backing path: %s\n", segment_path);
+		new_segment_backer = fopen(segment_path, "w+");
+		int header = size_to_create;
+		if(new_segment_backer == NULL){
+			printf("open is broken: %s\n", strerror(errno));
 		}
+		fwrite(&header, sizeof(int), 1, new_segment_backer);
+		fclose(new_segment_backer);
+
+		new_segment_log = fopen(segment_log_path, "w+");
+		//fseek(new_segment_log, sizeof(fpos_t), SEEK_SET);
+		//fgetpos(new_segment_log, &log_head);
+		//rewind(new_segment_log);
+		//fwrite(&log_head, sizeof(fpos_t), 1, new_segment_log); 
+		fclose(new_segment_log);
+
+		void *seg_base = malloc(size_to_create);
+		segment = add_segment(rvm_node->seg_list,seg_base);
+		segment->size = size_to_create;
+		segment->segname = segname;
+		segment->rvm_dir = rvm_node->rvm_dir;
+		//}
 	}
 	free(segment_path);
 	free(segment_log_path);
