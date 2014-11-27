@@ -5,15 +5,33 @@ make
 
 #T1 = "valgrind"
 #T2 = "gdb"
-if [ -z "$1" ];
+if [[ "$2" == 1 || "$1" == 1 ]];
 then
-	./basic
+	sudo rm -r rvm_segments
+	if [[ -z "$1" || "$1" == 1 ]];
+	then
+		./basic1
 
-elif [ "$1" == "valgrind" ];
+	elif [ "$1" == "valgrind" ];
+	then
+		valgrind ./basic1
+
+	elif [ "$1" == "gdb" ];
+	then
+		gdb ./basic1
+	fi
+elif [[ "$2" == 2 || "$1" == 2 ]];
 then
-	valgrind ./basic
+	if [[ -z "$1" || "$1" == 2 ]];
+	then
+		./basic2
 
-else [ "$1" == "gdb" ];
-	gdb ./basic
+	elif [ "$1" == "valgrind" ];
+	then
+		valgrind ./basic2
+
+	elif [ "$1" == "gdb" ];
+	then
+		gdb ./basic2
+	fi
 fi
-
