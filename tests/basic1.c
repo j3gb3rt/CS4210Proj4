@@ -38,9 +38,9 @@ void proc1()
      sprintf(segs[0]+OFFSET2, TEST_STRING);
      printf("Test String 2 written!\n"); 
      rvm_commit_trans(trans);
-	 printf("transaction commited!");
+	 printf("transaction commited!\n");
      abort();
-	 printf("Aborted!");
+	 printf("Aborted\n!");
 }
 
 
@@ -53,6 +53,9 @@ void proc2()
      rvm = rvm_init("rvm_segments");
 
      segs[0] = (char *) rvm_map(rvm, "testseg", 10000);
+	 printf("Got a mapping of %p\n", segs[0]);
+	 printf("test seg says: %s\n", segs[0]);
+
      if(strcmp(segs[0], TEST_STRING)) {
 	  printf("ERROR: first hello not present\n");
 	  exit(2);

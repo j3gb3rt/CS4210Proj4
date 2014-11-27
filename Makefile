@@ -22,7 +22,8 @@ $(OUT): $(OBJ)
 tests: $(OUT)
 	$(CC) $(CFLAGS) tests/me_test.c $(OUT) -pthread -o mytest
 	$(CC) $(CFLAGS) tests/abort.c $(OUT) -pthread -o abort
-	$(CC) $(CFLAGS) tests/basic.c $(OUT) -pthread -o basic
+	$(CC) $(CFLAGS) tests/basic1.c $(OUT) -pthread -o basic1
+	$(CC) $(CFLAGS) tests/basic2.c $(OUT) -pthread -o basic2
 	$(CC) $(CFLAGS) tests/multi.c $(OUT) -pthread -o multi
 	$(CC) $(CFLAGS) tests/multi-abort.c $(OUT) -pthread -o multiabort
 	$(CC) $(CFLAGS) tests/truncate.c $(OUT) -pthread -o truncate
@@ -41,5 +42,5 @@ tests: $(OUT)
 
 
 clean :
-	@rm *.o bin/*.a mytest abort basic multi multiabort truncate
+	@rm *.o bin/*.a mytest abort basic1 basic2 multi multiabort truncate
 	@echo Cleaned!
