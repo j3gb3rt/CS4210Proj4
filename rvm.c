@@ -342,7 +342,7 @@ void *rvm_map(rvm_t rvm, const char *segname, int size_to_create){
 		new_segment_log = fopen(segment_log_path, "w+");
 		fclose(new_segment_log);
 
-		void *seg_base = malloc(size_to_create);
+		void *seg_base = calloc(1,size_to_create);
 		segment = add_segment(rvm_node->seg_list,seg_base);
 		segment->size = size_to_create;
 		segment->segname = segname;
