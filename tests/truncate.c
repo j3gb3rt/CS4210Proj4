@@ -13,6 +13,7 @@ int main(int argc, char **argv)
      printf("Before Truncation:\n");
      system("ls -l rvm_segments");
      
+	 rvm_verbose(1);
      rvm = rvm_init("rvm_segments");
      rvm_truncate_log(rvm);
 

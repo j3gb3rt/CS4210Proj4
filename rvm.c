@@ -181,8 +181,13 @@ void load_and_update(segment_t *segment, char * segment_path, char * segment_log
 	while ((return_from_fread = fread(&log_entry_size, sizeof(size_t), 1, segment_log)) != 0) {
 		fread(segment->segbase, log_entry_size, 1, segment_log);
 	};
-	
+	rewind(segment_backer);
+	fwrite(&segment->size, sizeof(size_t), 1, segment_backer);
+	fwrite(segment->segbase, segment->size, 1, segment_backer);
 	fclose(segment_backer);
+	fclose(segment_log);
+
+	segment_log = fopen(segment_log_path, "w");
 	fclose(segment_log);
 }
 
@@ -509,35 +514,48 @@ void rvm_truncate_log(rvm_t rvm) {
 	
 	rvm_node = find_rvm(rvm);
 	curr = rvm_node->seg_list->head;
-	do {
-		segment_path = malloc(strlen(curr->rvm_dir) + 2 + strlen(curr->segname));
-		segment_log_path = malloc(strlen(curr->rvm_dir) + 6 + strlen(curr->segname));
-		strcpy(segment_path, curr->rvm_dir);
-		strcat(segment_path, "/");
-		strcat(segment_path, curr->segname);
-		if(logging_enabled) {
-			printf("[RVM] Truncating log for segment %s\n", curr->segname);
-		}
-		strcpy(segment_log_path, segment_path);
-		strcat(segment_log_path, ".log");
-		segment_log = fopen(segment_log_path, "r");
+
+	if (curr != NULL) {
+		do {
+			int log_bytes_read;
 		
-		while(fread(&log_read_size, sizeof(size_t), 1, segment_log) != 0) {
-			changes = malloc(log_read_size);
-			fread(changes, log_read_size, 1, segment_log);
-			segment_backer = fopen(segment_path, "w+");
-			fwrite(&log_read_size, sizeof(size_t), 1, segment_backer);
-			fwrite(changes, log_read_size, 1, segment_backer);
-			fclose(segment_backer);
-			free(changes);
-		} 
-		
-		fclose(segment_log);
-		segment_log = fopen(segment_log_path, "w");
-		fclose(segment_log);
-		free(segment_path);
-		free(segment_log_path);
-	} while (curr->next != NULL);
+			segment_path = malloc(strlen(curr->rvm_dir) + 2 + strlen(curr->segname));
+			segment_log_path = malloc(strlen(curr->rvm_dir) + 6 + strlen(curr->segname));
+			strcpy(segment_path, curr->rvm_dir);
+			strcat(segment_path, "/");
+			strcat(segment_path, curr->segname);
+
+			if(logging_enabled) {
+				printf("[RVM] Truncating log for segment %s\n", curr->segname);
+			}
+			strcpy(segment_log_path, segment_path);
+			strcat(segment_log_path, ".log");
+
+			segment_log = fopen(segment_log_path, "r");
+
+			log_bytes_read = fread(&log_read_size, sizeof(size_t), 1, segment_log);
+			
+			while(log_bytes_read != 0) {
+				changes = malloc(log_read_size);
+				fread(changes, log_read_size, 1, segment_log);
+				segment_backer = fopen(segment_path, "w+");
+				fwrite(&log_read_size, sizeof(size_t), 1, segment_backer);
+				fwrite(changes, log_read_size, 1, segment_backer);
+				fclose(segment_backer);
+				free(changes);
+				log_bytes_read = fread(&log_read_size, sizeof(size_t), 1, segment_log);	
+			} 
+			fclose(segment_log);
+			segment_log = fopen(segment_log_path, "w");
+			fclose(segment_log);
+			free(segment_path);
+			free(segment_log_path);
+			curr = curr->next;
+		} while (curr != NULL);
+	}
+	if(logging_enabled) {
+		printf("[RVM] Truncation complete\n");
+	}
 }
 
 void rvm_verbose(int enable_flag){
