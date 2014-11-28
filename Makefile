@@ -25,6 +25,7 @@ tests: $(OUT)
 	$(CC) $(CFLAGS) tests/multi.c $(OUT) -o multi
 	$(CC) $(CFLAGS) tests/multi-abort.c $(OUT) -o multiabort
 	$(CC) $(CFLAGS) tests/truncate.c $(OUT) -o truncate
+	$(CC) $(CFLAGS) tests/destroy.c $(OUT) -o destroy
 
 clean :
 	@rm *.o bin/*.a abort basic multi multiabort truncate
