@@ -30,5 +30,5 @@ tests: $(OUT)
 	$(CC) $(CFLAGS) tests/transaction_fail.c $(OUT) -o transaction_fail
 
 clean :
-	@rm *.o bin/*.a abort basic multi multiabort truncate destroy transaction_fail
+	@rm *.o bin/*.a abort basic multi multiabort truncate destroy remap transaction_fail
 	@echo Cleaned!

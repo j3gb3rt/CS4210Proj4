@@ -360,8 +360,8 @@ void rvm_unmap(rvm_t rvm, void *segbase){
 	//unmalloc segbase
 	rvm_list_t *rvm_node = find_rvm(rvm);
 	segment_t *segment = find_segment_by_ptr(rvm_node->seg_list, segbase);
-	free(segbase);
-	segbase = NULL;
+	free(segment->segbase);
+	segment->segbase = NULL;
 	if(logging_enabled) {
 		printf("[RVM] Unmapped segment %s\n", segment->segname);
 	}
