@@ -26,6 +26,7 @@ tests: $(OUT)
 	$(CC) $(CFLAGS) tests/multi-abort.c $(OUT) -o multiabort
 	$(CC) $(CFLAGS) tests/truncate.c $(OUT) -o truncate
 	$(CC) $(CFLAGS) tests/destroy.c $(OUT) -o destroy
+	$(CC) $(CFLAGS) tests/remap.c $(OUT) -o remap
 
 clean :
 	@rm *.o bin/*.a abort basic multi multiabort truncate
