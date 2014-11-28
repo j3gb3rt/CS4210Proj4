@@ -27,7 +27,8 @@ tests: $(OUT)
 	$(CC) $(CFLAGS) tests/truncate.c $(OUT) -o truncate
 	$(CC) $(CFLAGS) tests/destroy.c $(OUT) -o destroy
 	$(CC) $(CFLAGS) tests/remap.c $(OUT) -o remap
+	$(CC) $(CFLAGS) tests/transaction_fail.c $(OUT) -o transaction_fail
 
 clean :
-	@rm *.o bin/*.a abort basic multi multiabort truncate
+	@rm *.o bin/*.a abort basic multi multiabort truncate destroy transaction_fail
 	@echo Cleaned!

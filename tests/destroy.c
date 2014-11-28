@@ -28,7 +28,7 @@ int main(int argc, char **argv)
      /* write some data and commit it */
      trans = rvm_begin_trans(rvm, 1, segs);
      rvm_about_to_modify(trans, seg, 0, 100);
-     sprintf(seg, TEST_STRING1);
+     sprintf(seg, "hello, world");
      
      rvm_commit_trans(trans);
      rvm_unmap(rvm,seg);
